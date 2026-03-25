@@ -26,22 +26,35 @@
 
 ## 1. 什么是插件？
 
-Plugin Store 的插件本质上是一个 **Skill（技能）** — 一个 Markdown 文档（SKILL.md），它教 AI Agent（Claude Code、Cursor、OpenClaw）如何使用 onchainos CLI 执行特定的链上任务。
+插件有一个必须的核心：**SKILL.md** — 一个 Markdown 文档，教 AI Agent 如何执行链上任务。可选地，插件还可以包含 **MCP Server** 或 **Binary**（由我们的 CI 从你的源码编译）。
+
+**SKILL.md 始终是入口。** 即使你的插件包含 MCP Server，Skill 也负责告诉 AI Agent 有哪些工具可用、什么时候使用。
+
+### 两种类型的插件
 
 ```
-你的插件 (SKILL.md)
-  │
-  │  "当用户问 SOL 的价格时，
-  │   执行: onchainos market price --address <地址> --chain solana"
-  │
-  ▼
-AI Agent 读取你的 SKILL.md → 理解该做什么 → 调用 onchainos CLI
-  │
-  ▼
-onchainos CLI → OKX Web3 API → 区块链数据
+类型 A：纯 Skill（最常见，任何开发者都可以）
+────────────────────────────────────────────
+  SKILL.md → 指挥 AI → 调用 onchainos CLI
+
+类型 B：Skill + MCP/Binary（仅 Verified Third Party）
+────────────────────────────────────────────
+  SKILL.md → 指挥 AI → 调用 onchainos CLI
+                      + 调用你的 MCP 工具
+                      + 运行你的二进制命令
+
+  你的源码（在你自己的 GitHub 仓库中）
+    → 我们的 CI 编译
+    → 用户安装的是我们编译的产物
 ```
 
-插件不是二进制文件，不是服务器，不是可执行代码。它是一组 AI Agent 遵循的指令。
+在开始之前选择你的路径：
+
+| 我想要... | 类型 | 需要的信任等级 |
+|-----------|------|--------------|
+| 用 onchainos 命令创建策略 | 纯 Skill | Community Developer |
+| 构建自定义 MCP Server + onchainos | Skill + MCP | Verified Third Party |
+| 提供一个 CLI 工具 + Skill | Skill + Binary | Verified Third Party |
 
 ---
 
@@ -88,13 +101,17 @@ my-awesome-plugin/
 └── README.md                          # 插件说明
 ```
 
+**如果你要构建 Skill + MCP/Binary 插件**，你还需要：
+- 源码在你自己的 GitHub 仓库中（我们来编译，你不需要提交二进制）
+- 在 plugin.yaml 中添加 `build` 配置，指向你的仓库 + commit SHA
+
 ---
 
 ## 4. 第二步：编写 plugin.yaml
 
 plugin.yaml 是插件的清单文件，描述插件的基本信息、组件和权限。
 
-### 完整示例
+### 4A. 纯 Skill 示例
 
 ```yaml
 schema_version: 1
@@ -138,6 +155,63 @@ extra:
   risk_level: low                    # low | medium | high
 ```
 
+### 4B. Skill + MCP Server 示例（Verified Third Party）
+
+如果你的插件包含 MCP Server 或二进制，需要添加 `build` 配置。源码在你自己的 GitHub 仓库中 — 我们来编译。
+
+```yaml
+schema_version: 2
+name: defi-yield-optimizer
+version: "1.0.0"
+description: "跨协议 DeFi 收益优化，含自定义分析"
+author:
+  name: "DeFi Builder"
+  github: "defi-builder"
+license: MIT
+category: defi-protocol
+tags: [defi, yield]
+
+components:
+  skill:
+    dir: skills/defi-yield-optimizer   # SKILL.md — 始终必须，是入口
+  mcp:
+    type: binary
+    command: defi-yield-mcp            # 编译后的二进制名
+    args: ["--stdio"]
+    env: [DEFI_API_KEY]
+
+build:
+  lang: rust                            # rust | go | typescript | node | python
+  source_repo: "defi-builder/yield-mcp" # 你的 GitHub 源码仓库
+  source_commit: "a1b2c3d4e5f6..."      # 完整的 40 位 commit SHA（锁定版本）
+  source_dir: "."                       # 仓库内路径（默认：根目录）
+  binary_name: defi-yield-mcp           # 编译产物名
+
+permissions:
+  api_calls:
+    - "api.defillama.com"              # 声明所有外部 API
+  chains:
+    - ethereum
+    - base
+
+extra:
+  protocols: [morpho, aave]
+  risk_level: medium
+```
+
+**与纯 Skill 的关键区别：**
+- `schema_version: 2`（不是 1）
+- 声明了 `components.mcp` 或 `components.binary`
+- 包含 `build` 配置，含 `source_repo` + `source_commit`
+- 我们的 CI 从你的仓库克隆、编译、发布
+
+**如何获取 commit SHA：**
+```bash
+cd your-source-repo
+git rev-parse HEAD
+# 输出：a1b2c3d4e5f6789012345678901234567890abcd
+```
+
 ### 字段说明
 
 | 字段 | 必填 | 规则 |
@@ -164,9 +238,19 @@ extra:
 
 ## 5. 第三步：编写 SKILL.md
 
-SKILL.md 是插件的核心。它教 AI Agent 你的插件做什么，以及如何使用 onchainos 命令来完成任务。
+SKILL.md 是插件的**唯一入口**。它教 AI Agent 你的插件做什么以及如何使用。纯 Skill 插件编排 onchainos 命令；MCP/Binary 插件还额外编排你的自定义工具。
 
-### 模板
+```
+纯 Skill 插件：
+  SKILL.md → onchainos 命令
+
+MCP/Binary 插件：
+  SKILL.md → onchainos 命令
+           + 你的 MCP 工具（calculate_yield, find_route, ...）
+           + 你的二进制命令（my-tool start, my-tool status, ...）
+```
+
+### 5A. 模板（纯 Skill）
 
 ```markdown
 ---
@@ -216,6 +300,76 @@ onchainos <命令> <子命令> --参数 值
 - 需要代币交换 → 使用 `okx-dex-swap` 技能
 - 需要钱包余额 → 使用 `okx-wallet-portfolio` 技能
 - 需要安全扫描 → 使用 `okx-security` 技能
+```
+
+### 5B. 模板（MCP/Binary 插件）
+
+如果你的插件包含 MCP Server，SKILL.md 必须同时描述 onchainos 命令和你的 MCP 工具：
+
+```markdown
+---
+name: defi-yield-optimizer
+description: "DeFi 收益优化 — 自定义分析 + onchainos 执行"
+version: "1.0.0"
+author: "DeFi Builder"
+tags:
+  - defi
+  - yield
+---
+
+# DeFi 收益优化器
+
+## Overview
+
+本插件结合自定义收益分析（MCP 工具）和 onchainos 执行能力，
+帮用户找到并进入最佳的 DeFi 仓位。
+
+## Pre-flight Checks
+
+1. 已安装并配置 `onchainos` CLI
+2. 已通过 plugin-store 安装 defi-yield-mcp MCP Server
+3. 已设置 DEFI_API_KEY 环境变量
+
+## MCP 工具（本插件提供）
+
+### calculate_yield
+计算指定 DeFi 池子的预期 APY。
+**参数**: pool_address (string), chain (string)
+**返回**: APY 百分比、TVL、风险评分
+
+### find_best_route
+寻找进入 DeFi 仓位的最优交换路径。
+**参数**: from_token (string), to_token (string), amount (number)
+**返回**: 路径步骤、预估产出、价格影响
+
+## 命令（onchainos + MCP 工具配合使用）
+
+### 查询最佳收益
+
+1. 调用 MCP 工具 `calculate_yield` 获取目标池子的收益率
+2. 执行 `onchainos token info --address <pool_token> --chain <chain>`
+3. 向用户展示收益率 + 代币信息
+
+### 执行存入
+
+1. 调用 MCP 工具 `find_best_route` 获取最优路径
+2. 执行 `onchainos swap quote --from <token> --to <pool_token> --amount <amount>`
+3. **请用户确认** 金额和预期收益
+4. 执行 `onchainos swap swap ...`
+5. 向用户报告结果
+
+## Error Handling
+
+| 错误 | 原因 | 解决方案 |
+|------|------|---------|
+| MCP 连接失败 | Server 未运行 | 执行 `plugin-store install defi-yield-optimizer` |
+| "Pool not found" | 无效的池子地址 | 确认合约地址 |
+| "余额不足" | 代币不够 | 用 `onchainos portfolio all-balances` 查看余额 |
+
+## Skill Routing
+
+- 只需代币交换 → 使用 `okx-dex-swap` 技能
+- 需要安全检查 → 使用 `okx-security` 技能
 ```
 
 ### SKILL.md 写作最佳实践

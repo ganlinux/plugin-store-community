@@ -26,22 +26,35 @@
 
 ## 1. What is a Plugin?
 
-A Plugin Store plugin is a **Skill** — a markdown document (SKILL.md) that teaches AI agents (Claude Code, Cursor, OpenClaw) how to perform specific on-chain tasks using the onchainos CLI.
+A plugin has one required core: **SKILL.md** — a markdown document that teaches AI agents how to perform on-chain tasks. Optionally, it can also include an **MCP Server** or **Binary** (compiled from your source code by our CI).
+
+**SKILL.md is always the entry point.** Even if your plugin includes an MCP server, the Skill tells the AI agent what tools are available and when to use them.
+
+### Two types of plugins
 
 ```
-Your Plugin (SKILL.md)
-  │
-  │  "When the user asks to check SOL price,
-  │   run: onchainos market price --address <addr> --chain solana"
-  │
-  ▼
-AI Agent reads your SKILL.md → understands what to do → calls onchainos CLI
-  │
-  ▼
-onchainos CLI → OKX Web3 API → blockchain data
+Type A: Skill-Only (most common, any developer)
+────────────────────────────────────────────────
+  SKILL.md → instructs AI → calls onchainos CLI
+
+Type B: Skill + MCP/Binary (Verified Third Party only)
+────────────────────────────────────────────────
+  SKILL.md → instructs AI → calls onchainos CLI
+                           + calls your MCP tools
+                           + runs your binary commands
+
+  Your source code (in your GitHub repo)
+    → our CI compiles it
+    → users install our compiled artifact
 ```
 
-A plugin is NOT a binary, NOT a server, NOT executable code. It is a set of instructions that an AI agent follows.
+Choose your path before starting:
+
+| I want to... | Type | Trust Level Required |
+|---------------|------|---------------------|
+| Create a strategy using onchainos commands | Skill-Only | Community Developer |
+| Build a custom MCP server with onchainos | Skill + MCP | Verified Third Party |
+| Ship a CLI tool alongside a Skill | Skill + Binary | Verified Third Party |
 
 ---
 
@@ -73,7 +86,7 @@ A plugin is NOT a binary, NOT a server, NOT executable code. It is a set of inst
 plugin-store init my-awesome-plugin
 ```
 
-This generates a standard directory:
+This generates a standard directory for a Skill-only plugin:
 
 ```
 my-awesome-plugin/
@@ -88,13 +101,17 @@ my-awesome-plugin/
 └── README.md                          # Plugin description
 ```
 
+**If you're building a Skill + MCP/Binary plugin**, you also need:
+- Source code in your own GitHub repo (we compile it, you don't submit binaries)
+- A `build` section in plugin.yaml pointing to your repo + commit SHA
+
 ---
 
 ## 4. Step 2: Write plugin.yaml
 
 This is your plugin's manifest. It tells the Plugin Store what your plugin is, who wrote it, and what it can do.
 
-### Complete Example
+### 4A. Skill-Only Example
 
 ```yaml
 schema_version: 1
@@ -138,6 +155,63 @@ extra:
   risk_level: low                    # low | medium | high
 ```
 
+### 4B. Skill + MCP Server Example (Verified Third Party)
+
+If your plugin includes an MCP server or binary, you need a `build` section. Your source code stays in your own GitHub repo — we compile it.
+
+```yaml
+schema_version: 2
+name: defi-yield-optimizer
+version: "1.0.0"
+description: "Optimize DeFi yield across protocols with custom analytics"
+author:
+  name: "DeFi Builder"
+  github: "defi-builder"
+license: MIT
+category: defi-protocol
+tags: [defi, yield]
+
+components:
+  skill:
+    dir: skills/defi-yield-optimizer   # SKILL.md — always required, the entry point
+  mcp:
+    type: binary
+    command: defi-yield-mcp            # Name of compiled binary
+    args: ["--stdio"]
+    env: [DEFI_API_KEY]
+
+build:
+  lang: rust                            # rust | go | typescript | node | python
+  source_repo: "defi-builder/yield-mcp" # Your GitHub repo with source code
+  source_commit: "a1b2c3d4e5f6..."      # Full 40-char commit SHA (pinned)
+  source_dir: "."                       # Path within repo (default: root)
+  binary_name: defi-yield-mcp           # Compiled output name
+
+permissions:
+  api_calls:
+    - "api.defillama.com"              # Declare all external APIs
+  chains:
+    - ethereum
+    - base
+
+extra:
+  protocols: [morpho, aave]
+  risk_level: medium
+```
+
+**Key differences from Skill-Only:**
+- `schema_version: 2` (not 1)
+- `components.mcp` or `components.binary` declared
+- `build` section with `source_repo` + `source_commit`
+- Our CI clones your repo at the exact commit, compiles, and publishes
+
+**How to get the commit SHA:**
+```bash
+cd your-source-repo
+git rev-parse HEAD
+# Output: a1b2c3d4e5f6789012345678901234567890abcd
+```
+
 ### Field Reference
 
 | Field | Required | Rules |
@@ -164,9 +238,19 @@ extra:
 
 ## 5. Step 3: Write SKILL.md
 
-SKILL.md is the core of your plugin. It teaches the AI agent what your plugin does and how to use onchainos commands to accomplish tasks.
+SKILL.md is the **single entry point** of your plugin. It teaches the AI agent what your plugin does and how to use it. For Skill-only plugins, it orchestrates onchainos commands. For MCP/Binary plugins, it also orchestrates your custom tools.
 
-### Template
+```
+Skill-Only plugin:
+  SKILL.md → onchainos commands
+
+MCP/Binary plugin:
+  SKILL.md → onchainos commands
+           + your MCP tools (calculate_yield, find_route, ...)
+           + your binary commands (my-tool start, my-tool status, ...)
+```
+
+### 5A. Template (Skill-Only)
 
 ```markdown
 ---
@@ -216,6 +300,76 @@ onchainos <command> <subcommand> --flag value
 - For token swaps → use `okx-dex-swap` skill
 - For wallet balances → use `okx-wallet-portfolio` skill
 - For security scanning → use `okx-security` skill
+```
+
+### 5B. Template (MCP/Binary Plugin)
+
+If your plugin includes an MCP server, the SKILL.md must tell the AI agent about **both** onchainos commands and your custom MCP tools:
+
+```markdown
+---
+name: defi-yield-optimizer
+description: "Optimize DeFi yield with custom analytics and onchainos execution"
+version: "1.0.0"
+author: "DeFi Builder"
+tags:
+  - defi
+  - yield
+---
+
+# DeFi Yield Optimizer
+
+## Overview
+
+This plugin combines custom yield analytics (via MCP tools) with
+onchainos execution capabilities to find and enter the best DeFi positions.
+
+## Pre-flight Checks
+
+1. The `onchainos` CLI is installed and configured
+2. The defi-yield-mcp MCP server is installed via plugin-store
+3. A valid DEFI_API_KEY environment variable is set
+
+## MCP Tools (provided by this plugin)
+
+### calculate_yield
+Calculate the projected APY for a specific DeFi pool.
+**Parameters**: pool_address (string), chain (string)
+**Returns**: APY percentage, TVL, risk score
+
+### find_best_route
+Find the optimal swap route to enter a DeFi position.
+**Parameters**: from_token (string), to_token (string), amount (number)
+**Returns**: Route steps, estimated output, price impact
+
+## Commands (using onchainos + MCP tools together)
+
+### Find Best Yield
+
+1. Call MCP tool `calculate_yield` for the target pool
+2. Run `onchainos token info --address <pool_token> --chain <chain>`
+3. Present yield rate + token info to user
+
+### Enter Position
+
+1. Call MCP tool `find_best_route` for the swap
+2. Run `onchainos swap quote --from <token> --to <pool_token> --amount <amount>`
+3. **Ask user to confirm** the swap amount and expected yield
+4. Run `onchainos swap swap ...` to execute
+5. Report result to user
+
+## Error Handling
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| MCP connection failed | Server not running | Run `plugin-store install defi-yield-optimizer` |
+| "Pool not found" | Invalid pool address | Verify the pool contract address |
+| "Insufficient balance" | Not enough tokens | Check balance with `onchainos portfolio all-balances` |
+
+## Skill Routing
+
+- For token swaps only → use `okx-dex-swap` skill
+- For security checks → use `okx-security` skill
 ```
 
 ### SKILL.md Best Practices
