@@ -438,51 +438,47 @@ Linting ./my-awesome-plugin/...
 
 ## 8. 第六步：通过 Pull Request 提交
 
-### 1. Fork 社区仓库
-
-访问 https://github.com/yz06276/plugin-store-community 点击 **Fork**。
-
-### 2. 克隆你的 Fork
+### 1. 克隆社区仓库
 
 ```bash
-git clone git@github.com:你的用户名/plugin-store-community.git
+git clone git@github.com:yz06276/plugin-store-community.git
 cd plugin-store-community
 ```
 
-### 3. 将 plugin 复制到 submissions/ 目录
-
-```bash
-cp -r /path/to/my-awesome-plugin submissions/my-awesome-plugin
-```
-
-### 4. 确认目录结构
-
-```
-submissions/
- my-awesome-plugin/
- plugin.yaml
- skills/
- my-awesome-plugin/
- SKILL.md
- references/
- cli-reference.md
- LICENSE
- CHANGELOG.md
- README.md
-```
-
-### 5. 提交并推送
+### 2. 创建分支并添加你的 plugin
 
 ```bash
 git checkout -b submit/my-awesome-plugin
+cp -r /path/to/my-awesome-plugin submissions/my-awesome-plugin
+```
+
+### 3. 确认目录结构
+
+```
+submissions/
+  my-awesome-plugin/
+    plugin.yaml
+    skills/
+      my-awesome-plugin/
+        SKILL.md
+        references/
+          cli-reference.md
+    LICENSE
+    CHANGELOG.md
+    README.md
+```
+
+### 4. 提交并推送
+
+```bash
 git add submissions/my-awesome-plugin/
 git commit -m "[new-plugin] my-awesome-plugin v1.0.0"
 git push origin submit/my-awesome-plugin
 ```
 
-### 6. 创建 Pull Request
+### 5. 创建 Pull Request
 
-在 GitHub 上你的 Fork 页面点击 **"Compare & pull request"**。使用以下标题格式：
+在 GitHub 上从你的分支创建 Pull Request。使用以下标题格式：
 
 ```
 [new-plugin] my-awesome-plugin v1.0.0

@@ -438,24 +438,21 @@ Fix all errors (❌) before submitting. Warnings (⚠️) are advisory.
 
 ## 8. Step 6: Submit via Pull Request
 
-### 1. Fork the community repository
-
-Go to https://github.com/yz06276/plugin-store-community and click **Fork**.
-
-### 2. Clone your fork
+### 1. Clone the community repository
 
 ```bash
-git clone git@github.com:YOUR_USERNAME/plugin-store-community.git
+git clone git@github.com:yz06276/plugin-store-community.git
 cd plugin-store-community
 ```
 
-### 3. Copy your plugin into submissions/
+### 2. Create a branch and add your plugin
 
 ```bash
+git checkout -b submit/my-awesome-plugin
 cp -r /path/to/my-awesome-plugin submissions/my-awesome-plugin
 ```
 
-### 4. Verify the directory structure
+### 3. Verify the directory structure
 
 ```
 submissions/
@@ -471,18 +468,17 @@ submissions/
     README.md
 ```
 
-### 5. Commit and push
+### 4. Commit and push
 
 ```bash
-git checkout -b submit/my-awesome-plugin
 git add submissions/my-awesome-plugin/
 git commit -m "[new-plugin] my-awesome-plugin v1.0.0"
 git push origin submit/my-awesome-plugin
 ```
 
-### 6. Open a Pull Request
+### 5. Open a Pull Request
 
-Go to your fork on GitHub and click **"Compare & pull request"**. Use this title format:
+Go to GitHub and create a Pull Request from your branch. Use this title format:
 
 ```
 [new-plugin] my-awesome-plugin v1.0.0

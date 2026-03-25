@@ -89,12 +89,16 @@ Fix all errors (❌) before submitting. Warnings (⚠️) are advisory but recom
 
 ## Step 4: Submit
 
-1. **Fork** this repository
-2. **Copy** your plugin directory into `submissions/`:
+1. **Clone** this repository:
    ```bash
+   git clone git@github.com:yz06276/plugin-store-community.git
+   ```
+2. **Create a branch** and copy your plugin into `submissions/`:
+   ```bash
+   git checkout -b submit/my-awesome-plugin
    cp -r my-awesome-plugin submissions/
    ```
-3. **Commit and push** to your fork
+3. **Commit and push**
 4. **Open a Pull Request** against `main`
 
 ### PR Title Format

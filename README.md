@@ -22,7 +22,7 @@ Community-submitted plugins for the [Plugin Store](https://github.com/yz06276/pl
    plugin-store lint submissions/my-awesome-plugin/
    ```
 
-4. **Fork** this repo, copy your plugin into `submissions/`, and **open a PR**
+4. **Clone** this repo, copy your plugin into `submissions/`, **push** and **open a PR**
 
 5. Automated checks run (structure, AI review, security). Once all pass, a maintainer reviews and merges.
 
