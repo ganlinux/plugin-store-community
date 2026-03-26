@@ -179,7 +179,7 @@ api_calls: []
 如果你的 plugin 包含 binary 或二进制，需要添加 `build` 配置。源码在你自己的 GitHub 仓库中 — 我们来编译。
 
 ```yaml
-schema_version: 2
+schema_version: 1
 name: defi-yield-optimizer
 version: "1.0.0"
 description: "跨协议 DeFi 收益优化，含自定义分析"
@@ -211,7 +211,7 @@ api_calls:
 ```
 
 **与纯 Skill 的关键区别：**
-- `schema_version: 2`（不是 1）
+- `schema_version: 1`（不是 1）
 - 声明了 ``components.binary``
 - 包含 `build` 配置，含 `source_repo` + `source_commit`
 - 我们的 CI 从你的仓库克隆、编译、发布
@@ -626,7 +626,7 @@ onchainos market price --address <TOKEN_ADDRESS> --chain solana
 你的源码保留在你自己的 GitHub 仓库中。你提供仓库地址和一个锁定的 commit SHA — 我们的 CI 在这个精确的提交上克隆、编译、发布。commit SHA 就是内容指纹：相同的 SHA = 相同的代码，不可篡改。
 
 ```yaml
-schema_version: 2
+schema_version: 1
 name: my-binary-tool
 version: "1.0.0"
 description: "我的 binary 工具"

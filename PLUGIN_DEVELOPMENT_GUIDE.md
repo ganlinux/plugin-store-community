@@ -168,7 +168,7 @@ api_calls: []
 If your plugin includes a binary, you need a `build` section. Your source code stays in your own GitHub repo — we compile it.
 
 ```yaml
-schema_version: 2
+schema_version: 1
 name: defi-yield-optimizer
 version: "1.0.0"
 description: "Optimize DeFi yield across protocols with custom analytics"
@@ -197,7 +197,7 @@ api_calls:
 ```
 
 **Key differences from Skill-Only:**
-- `schema_version: 2` (not 1)
+- `schema_version: 1` (not 1)
 - `components.binary` declared
 - `build` section with `source_repo` + `source_commit`
 - Our CI clones your repo at the exact commit, compiles, and publishes
@@ -590,7 +590,7 @@ You never submit binaries. We never modify your source code.
 Your source code stays in your own GitHub repo. You provide the repo URL and a pinned commit SHA — our CI clones at that exact commit, compiles, and publishes. The commit SHA is the content fingerprint: same SHA = same code, guaranteed.
 
 ```yaml
-schema_version: 2
+schema_version: 1
 name: my-binary-tool
 version: "1.0.0"
 description: "My custom binary tool"
