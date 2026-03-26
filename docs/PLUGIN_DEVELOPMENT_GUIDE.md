@@ -159,11 +159,6 @@ tags: [defi, yield]
 components:
   skill:
     dir: skills/defi-yield-optimizer   # SKILL.md — always required, the entry point
-  binary:
-    type: binary
-    command: defi-yield            # Name of compiled binary
-    args: ["--stdio"]
-    env: [DEFI_API_KEY]
 
 build:
   lang: rust                            # rust | go | typescript | node | python
@@ -630,11 +625,6 @@ tags: [defi]
 components:
   skill:
     dir: skills/my-binary-tool       # SKILL.md is ALWAYS required
-  binary:
-    type: binary
-    command: my-binary-tool
-    args: ["--stdio"]
-    env: [API_KEY]
 
 build:
   lang: rust                          # rust | go | typescript | node | python
