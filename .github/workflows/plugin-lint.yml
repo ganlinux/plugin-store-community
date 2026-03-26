@@ -96,7 +96,7 @@ jobs:
       - name: Install plugin-store CLI
         run: |
           # Install from the plugin-store repo (specify package name to avoid ambiguity)
-          cargo install --git https://github.com/yz06276/plugin-store.git --branch feat/submission-pipeline plugin-store
+          cargo install --git https://github.com/yz06276/plugin-store.git  plugin-store
 
       - name: Run lint
         id: lint
