@@ -18,17 +18,4 @@ components:
   skill:
     dir: skills/_example-plugin
 
-permissions:
-  wallet:
-    read_balance: true
-    send_transaction: false
-    sign_message: false
-    contract_call: false
-  network:
-    api_calls: []
-    onchainos_commands:
-      - "token search"
-      - "market price"
-  chains:
-    - ethereum
-    - solana
+api_calls: []
