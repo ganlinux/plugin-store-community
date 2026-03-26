@@ -97,6 +97,10 @@ plugin 有一个必须的核心：**SKILL.md** — 一个 Markdown 文档，教 
  ```bash
  curl -fsSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | bash
  ```
+ 安装后如果找不到 `onchainos` 命令，添加到 PATH：
+ ```bash
+ export PATH="$HOME/.local/bin:$PATH"
+ ```
 - 了解你的 plugin 所涉及的区块链/DeFi 领域
 
 ### 核心规则
@@ -211,17 +215,27 @@ api_calls:
 ```
 
 **与纯 Skill 的关键区别：**
-- `schema_version: 1`（不是 1）
-- 声明了 ``components.binary``
-- 包含 `build` 配置，含 `source_repo` + `source_commit`
-- 我们的 CI 从你的仓库克隆、编译、发布
+- 包含 `build` 配置，含 `source_repo` + `source_commit` — 告诉我们的 CI 源码在哪里
+- 我们的 CI 在精确的 commit SHA 上克隆你的仓库，编译并发布二进制
 
 **如何获取 commit SHA：**
+
+你的源码必须先推送到 GitHub，然后才能获取有效的 commit SHA。流程如下：
+
 ```bash
+# 1. 在你的源码仓库中 — 先开发并推送代码
 cd your-source-repo
+git add . && git commit -m "v1.0.0"
+git push origin main
+
+# 2. 获取完整的 40 位 commit SHA
 git rev-parse HEAD
 # 输出：a1b2c3d4e5f6789012345678901234567890abcd
+
+# 3. 把这个 SHA 复制到 plugin.yaml 的 build.source_commit 字段
 ```
+
+> commit 必须已经存在于 GitHub 上（不能只在本地）。我们的 CI 会从 GitHub 上的这个精确 SHA 克隆。
 
 ### 字段说明
 
@@ -656,9 +670,12 @@ api_calls: []
 
 ### 如何获取 commit SHA
 
+源码必须先推送到 GitHub：
+
 ```bash
-# 在你的源码仓库中，推送代码后执行：
-git rev-parse HEAD
+cd your-source-repo
+git push origin main              # 确保代码在 GitHub 上
+git rev-parse HEAD                # 获取完整 40 位 SHA
 # 输出：342756ee25405b5ec5b375a37c1b36710d5b9cd6
 # 把这个完整的 40 位字符串复制到 build.source_commit
 ```

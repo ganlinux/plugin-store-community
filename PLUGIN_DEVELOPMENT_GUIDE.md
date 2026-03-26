@@ -93,6 +93,10 @@ Choose your path before starting:
   ```bash
   curl -fsSL https://raw.githubusercontent.com/okx/onchainos-skills/main/install.sh | bash
   ```
+  After installation, if `onchainos` is not found, add it to your PATH:
+  ```bash
+  export PATH="$HOME/.local/bin:$PATH"
+  ```
 - Basic understanding of the blockchain/DeFi domain your plugin covers
 
 ### Key Rule
@@ -197,17 +201,27 @@ api_calls:
 ```
 
 **Key differences from Skill-Only:**
-- `schema_version: 1` (not 1)
-- `components.binary` declared
-- `build` section with `source_repo` + `source_commit`
-- Our CI clones your repo at the exact commit, compiles, and publishes
+- A `build` section with `source_repo` + `source_commit` — tells our CI where your source code is
+- Our CI clones your repo at the exact commit SHA, compiles, and publishes the binary
 
 **How to get the commit SHA:**
+
+Your source code must be pushed to GitHub **before** you can get a valid commit SHA. The workflow is:
+
 ```bash
+# 1. In your source code repo — develop and push your code first
 cd your-source-repo
+git add . && git commit -m "v1.0.0"
+git push origin main
+
+# 2. Get the full 40-character commit SHA
 git rev-parse HEAD
 # Output: a1b2c3d4e5f6789012345678901234567890abcd
+
+# 3. Copy this SHA into your plugin.yaml build.source_commit field
 ```
+
+> The commit must exist on GitHub (not just local). Our CI clones from GitHub at this exact SHA.
 
 ### Field Reference
 
@@ -619,11 +633,14 @@ api_calls: []
 
 ### How to get the commit SHA
 
+Your source code must be pushed to GitHub first. Then:
+
 ```bash
-# In your source code repo, after pushing your code:
-git rev-parse HEAD
+cd your-source-repo
+git push origin main            # make sure code is on GitHub
+git rev-parse HEAD              # get the full 40-char SHA
 # Output: 342756ee25405b5ec5b375a37c1b36710d5b9cd6
-# Copy this full 40-character string into build.source_commit
+# Copy this into build.source_commit
 ```
 
 ### Directory Structure
