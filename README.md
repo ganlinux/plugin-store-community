@@ -102,7 +102,7 @@ plugin-store install my-plugin
 
 ---
 
-## Full Guides
+## Reference
 
 - **[Development Guide (English)](./PLUGIN_DEVELOPMENT_GUIDE.md)** — all details, examples, error codes, FAQ
 - **[开发指南（中文）](./PLUGIN_DEVELOPMENT_GUIDE_ZH.md)** — 完整的 plugin 开发与提交指南
