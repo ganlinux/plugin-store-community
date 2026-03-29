@@ -1,0 +1,32 @@
+schema_version: 1
+name: signal-tracker-rust
+alias: "Signal Tracker (Rust)"
+version: "1.0.0"
+description: "Track smart money wallet activity and aggregated buy signals — Rust implementation"
+author:
+  name: "Mingtao"
+  github: "ganlinux"
+license: MIT
+category: analytics
+tags:
+  - smart-money
+  - signals
+  - wallet-tracker
+
+components:
+  skill:
+    dir: skills/signal-tracker
+
+  binary:
+    repo: okx/plugin-store
+    asset_pattern: "signal-tracker-rust-{target}"
+    checksums_asset: checksums.txt
+
+build:
+  lang: rust
+  source_repo: ganlinux/signal-tracker-rust
+  source_commit: "e41e857d4c2d2a637a501efe7e9e49aa7742e395"
+  source_dir: .
+  binary_name: signal-tracker
+
+api_calls: []

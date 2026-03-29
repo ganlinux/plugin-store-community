@@ -1,0 +1,15 @@
+{
+  "name": "signal-tracker",
+  "version": "1.0.0",
+  "description": "CLI tool for tracking on-chain signals",
+  "main": "src/index.js",
+  "bin": {
+    "signal-tracker": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "keywords": ["blockchain", "signals", "cli", "onchainos"],
+  "author": "",
+  "license": "MIT"
+}

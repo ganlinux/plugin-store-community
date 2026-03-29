@@ -1,0 +1,33 @@
+schema_version: 1
+name: signal-tracker-node
+alias: "Signal Tracker (Node.js)"
+version: "1.0.0"
+description: "Track smart money wallet activity and aggregated buy signals — Node.js implementation"
+author:
+  name: "Mingtao"
+  github: "ganlinux"
+license: MIT
+category: analytics
+tags:
+  - smart-money
+  - signals
+  - wallet-tracker
+
+components:
+  skill:
+    dir: skills/signal-tracker
+
+  binary:
+    repo: okx/plugin-store
+    asset_pattern: "signal-tracker-node-{target}"
+    checksums_asset: checksums.txt
+
+build:
+  lang: node
+  source_repo: ganlinux/signal-tracker-node
+  source_commit: "0c7517a60004cc401fec8e1e9383e0407f77c8e8"
+  source_dir: .
+  binary_name: signal-tracker
+  main: src/index.js
+
+api_calls: []

@@ -1,0 +1,8 @@
+[project]
+name = "signal-tracker"
+version = "1.0.0"
+description = "CLI tool for tracking on-chain signals"
+requires-python = ">=3.8"
+
+[project.scripts]
+signal-tracker = "main:main"
