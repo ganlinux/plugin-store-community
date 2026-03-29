@@ -7,7 +7,7 @@ version: "1.0.0"
 description: "Example plugin that demonstrates the submission format"
 author:
   name: "Plugin Store Team"
-  github: "yz06276"
+  github: "MigOKG"
 license: MIT
 category: utility
 tags:
