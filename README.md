@@ -12,16 +12,16 @@ Submit your plugin to the [Plugin Store](https://github.com/okx/plugin-store) ec
 ```bash
 git clone --depth=1 git@github.com:YOUR_USERNAME/plugin-store-community.git
 cd plugin-store-community
-plugin-store init my-plugin
+plugin-store init <your-plugin-name>
 ```
 
-`init` auto-detects you're in the community repo and creates `submissions/my-plugin/`:
+`init` auto-detects you're in the community repo and creates `submissions/<your-plugin-name>/`:
 
 ```
-submissions/my-plugin/
+submissions/<your-plugin-name>/
 ├── plugin.yaml       ← fill in your plugin info
 ├── skills/
-│   └── my-plugin/
+│   └── <your-plugin-name>/
 │       └── SKILL.md  ← write what your plugin does (with onchainos demo)
 ├── LICENSE
 └── README.md
@@ -33,7 +33,7 @@ Fill in `plugin.yaml` with your plugin info:
 
 ```yaml
 schema_version: 1
-name: my-plugin
+name: <your-plugin-name>
 version: "1.0.0"
 description: "One-line description of what your plugin does"
 author:
@@ -45,7 +45,7 @@ tags: [keyword1, keyword2]
 
 components:
   skill:
-    dir: skills/my-plugin
+    dir: skills/<your-plugin-name>
 
 api_calls: []        # external API domains, if any
 ```
@@ -57,7 +57,7 @@ Then edit `SKILL.md` — it teaches the AI agent how to use your plugin. The gen
 ### Step 3: Check locally
 
 ```bash
-plugin-store lint ./submissions/my-plugin/
+plugin-store lint ./submissions/<your-plugin-name>/
 ```
 
 Fix any errors (❌) it reports, then re-run until you see ✓.
@@ -65,10 +65,10 @@ Fix any errors (❌) it reports, then re-run until you see ✓.
 ### Step 4: Submit
 
 ```bash
-git checkout -b submit/my-plugin
-git add submissions/my-plugin/
-git commit -m "[new-plugin] my-plugin v1.0.0"
-git push origin submit/my-plugin
+git checkout -b submit/<your-plugin-name>
+git add submissions/<your-plugin-name>/
+git commit -m "[new-plugin] <your-plugin-name> v1.0.0"
+git push origin submit/<your-plugin-name>
 ```
 
 Then go to GitHub and open a **Pull Request** from your fork to `okx/plugin-store-community`.
@@ -86,7 +86,7 @@ Your PR automatically gets:
 
 Once merged, your plugin is live:
 ```bash
-plugin-store install my-plugin
+plugin-store install <your-plugin-name>
 ```
 
 ---

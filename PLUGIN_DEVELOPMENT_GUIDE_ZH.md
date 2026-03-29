@@ -119,16 +119,16 @@ plugin 有一个必须的核心：**SKILL.md** — 一个 Markdown 文档，教 
 ```bash
 git clone --depth=1 git@github.com:YOUR_USERNAME/plugin-store-community.git
 cd plugin-store-community
-plugin-store init my-awesome-plugin
+plugin-store init <your-plugin-name>
 ```
 
 `init` 自动检测到 `submissions/` 目录，直接在里面创建你的 plugin：
 
 ```
-submissions/my-awesome-plugin/
+submissions/<your-plugin-name>/
 ├── plugin.yaml                        # plugin 清单（需要填写）
 ├── skills/
-│   └── my-awesome-plugin/
+│   └── <your-plugin-name>/
 │       ├── SKILL.md                   # 技能定义（内置 onchainos demo）
 │       └── references/
 │           └── cli-reference.md       # CLI 参考文档
@@ -281,7 +281,7 @@ Binary plugin：
 
 ```markdown
 ---
-name: my-awesome-plugin
+name: <your-plugin-name>
 description: "简要描述这个技能做什么"
 version: "1.0.0"
 author: "你的名字"
@@ -434,21 +434,21 @@ api_calls:
 提交前在本地验证你的 plugin：
 
 ```bash
-plugin-store lint ./my-awesome-plugin/
+plugin-store lint ./<your-plugin-name>/
 ```
 
 ### 全部通过时：
 
 ```
-Linting ./my-awesome-plugin/...
+Linting ./<your-plugin-name>/...
 
-✓ Plugin 'my-awesome-plugin' passed all checks!
+✓ Plugin '<your-plugin-name>' passed all checks!
 ```
 
 ### 有错误时：
 
 ```
-Linting ./my-awesome-plugin/...
+Linting ./<your-plugin-name>/...
 
  ❌ [E031] name 'My-Plugin' must be lowercase alphanumeric with hyphens only
  ❌ [E065] api_calls field is required
@@ -481,10 +481,10 @@ Linting ./my-awesome-plugin/...
 你已经在第一步 fork 并克隆了仓库，plugin 在 `submissions/` 里，创建分支并推送到你的 fork：
 
 ```bash
-git checkout -b submit/my-awesome-plugin
-git add submissions/my-awesome-plugin/
-git commit -m "[new-plugin] my-awesome-plugin v1.0.0"
-git push origin submit/my-awesome-plugin
+git checkout -b submit/<your-plugin-name>
+git add submissions/<your-plugin-name>/
+git commit -m "[new-plugin] <your-plugin-name> v1.0.0"
+git push origin submit/<your-plugin-name>
 ```
 
 然后在 GitHub 上从你的 fork 向 `okx/plugin-store-community` 创建 Pull Request。
@@ -492,7 +492,7 @@ git push origin submit/my-awesome-plugin
 在 GitHub 上从你的分支创建 Pull Request。使用以下标题格式：
 
 ```
-[new-plugin] my-awesome-plugin v1.0.0
+[new-plugin] <your-plugin-name> v1.0.0
 ```
 
 PR 模板会引导你完成检查清单。
@@ -539,8 +539,8 @@ Phase 3：AI 代码审查（Claude）
 你的 plugin 会自动：
 
 1. 添加到主 plugin-store 仓库的 `registry.json` 中
-2. 创建 git tag `plugins/my-awesome-plugin@1.0.0`
-3. 所有用户可通过 `plugin-store install my-awesome-plugin` 安装
+2. 创建 git tag `plugins/<your-plugin-name>@1.0.0`
+3. 所有用户可通过 `plugin-store install <your-plugin-name>` 安装
 
 ---
 
@@ -550,10 +550,10 @@ Phase 3：AI 代码审查（Claude）
 
 ### 内容更新（修改 SKILL.md、添加命令）
 
-1. 修改 `submissions/my-awesome-plugin/` 下的文件
+1. 修改 `submissions/<your-plugin-name>/` 下的文件
 2. 在 plugin.yaml 中升级 `version`（例如 `1.0.0` → `1.1.0`）
 3. 更新 CHANGELOG.md
-4. 创建 PR，标题格式：`[update] my-awesome-plugin v1.1.0`
+4. 创建 PR，标题格式：`[update] <your-plugin-name> v1.1.0`
 
 ### 链或 API 变更（需要完整审核）
 
@@ -642,7 +642,7 @@ onchainos market price --address <TOKEN_ADDRESS> --chain solana
 
 ```yaml
 schema_version: 1
-name: my-binary-tool
+name: <your-plugin-name>
 version: "1.0.0"
 description: "我的 binary 工具"
 author:
@@ -654,14 +654,14 @@ tags: [defi]
 
 components:
  skill:
- dir: skills/my-binary-tool # SKILL.md 始终必须
+ dir: skills/<your-plugin-name> # SKILL.md 始终必须
 
 build:
  lang: rust # rust | go | typescript | node | python
- source_repo: "your-username/my-binary-tool" # 你的 GitHub 源码仓库
+ source_repo: "your-username/<your-plugin-name>" # 你的 GitHub 源码仓库
  source_commit: "abc123def456..." # 完整的 40 位 commit SHA（锁定版本）
  source_dir: "." # 仓库内的路径（默认：根目录）
- binary_name: my-binary-tool # 编译产物名
+ binary_name: <your-plugin-name> # 编译产物名
  # main: src/index.ts # TypeScript/Python 需要指定
 
  - ethereum
@@ -686,16 +686,16 @@ git rev-parse HEAD                # 获取完整 40 位 SHA
 源码在你自己的仓库中。你只需要把元数据 + SKILL 提交到 community 仓库：
 
 ```
-submissions/my-binary-tool/ ← 在 community 仓库中（很小，约 20KB）
+submissions/<your-plugin-name>/ ← 在 community 仓库中（很小，约 20KB）
  plugin.yaml # 包含 build 配置，指向你的仓库
- skills/my-binary-tool/
+ skills/<your-plugin-name>/
  SKILL.md # AI Agent 的入口
  references/
  LICENSE
  CHANGELOG.md
  README.md
 
-your-username/my-binary-tool ← 你自己的 GitHub 仓库（源码）
+your-username/<your-plugin-name> ← 你自己的 GitHub 仓库（源码）
  Cargo.toml # （Rust 示例）
  src/
  main.rs

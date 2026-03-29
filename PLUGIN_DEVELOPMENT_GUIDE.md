@@ -113,16 +113,16 @@ Choose your path before starting:
 ```bash
 git clone --depth=1 git@github.com:YOUR_USERNAME/plugin-store-community.git
 cd plugin-store-community
-plugin-store init my-awesome-plugin
+plugin-store init <your-plugin-name>
 ```
 
 `init` auto-detects the `submissions/` directory and creates your plugin there:
 
 ```
-submissions/my-awesome-plugin/
+submissions/<your-plugin-name>/
 ├── plugin.yaml                        # Plugin manifest (you fill this in)
 ├── skills/
-│   └── my-awesome-plugin/
+│   └── <your-plugin-name>/
 │       ├── SKILL.md                   # Skill definition (with onchainos demo built-in)
 │       └── references/
 │           └── cli-reference.md       # CLI reference docs (you write this)
@@ -265,7 +265,7 @@ Binary plugin:
 
 ```markdown
 ---
-name: my-awesome-plugin
+name: <your-plugin-name>
 description: "Brief description of what this skill does"
 version: "1.0.0"
 author: "Your Name"
@@ -412,21 +412,21 @@ api_calls:
 Before submitting, validate your plugin locally:
 
 ```bash
-plugin-store lint ./my-awesome-plugin/
+plugin-store lint ./<your-plugin-name>/
 ```
 
 ### If everything passes:
 
 ```
-Linting ./my-awesome-plugin/...
+Linting ./<your-plugin-name>/...
 
-✓ Plugin 'my-awesome-plugin' passed all checks!
+✓ Plugin '<your-plugin-name>' passed all checks!
 ```
 
 ### If there are errors:
 
 ```
-Linting ./my-awesome-plugin/...
+Linting ./<your-plugin-name>/...
 
   ❌ [E031] name 'My-Plugin' must be lowercase alphanumeric with hyphens only
   ❌ [E065] api_calls field is required
@@ -457,16 +457,16 @@ Fix all errors (❌) before submitting. Warnings (⚠️) are advisory.
 Since you already forked and cloned in Step 1, your plugin is in `submissions/`. Create a branch and push to your fork:
 
 ```bash
-git checkout -b submit/my-awesome-plugin
-git add submissions/my-awesome-plugin/
-git commit -m "[new-plugin] my-awesome-plugin v1.0.0"
-git push origin submit/my-awesome-plugin
+git checkout -b submit/<your-plugin-name>
+git add submissions/<your-plugin-name>/
+git commit -m "[new-plugin] <your-plugin-name> v1.0.0"
+git push origin submit/<your-plugin-name>
 ```
 
 Then go to GitHub and open a Pull Request from your fork to `okx/plugin-store-community`. Use this title format:
 
 ```
-[new-plugin] my-awesome-plugin v1.0.0
+[new-plugin] <your-plugin-name> v1.0.0
 ```
 
 The PR template will guide you through the checklist.
@@ -511,8 +511,8 @@ A maintainer reviews:
 Your plugin is automatically:
 
 1. Added to `registry.json` in the main plugin-store repo
-2. Tagged with `plugins/my-awesome-plugin@1.0.0`
-3. Available to all users via `plugin-store install my-awesome-plugin`
+2. Tagged with `plugins/<your-plugin-name>@1.0.0`
+3. Available to all users via `plugin-store install <your-plugin-name>`
 
 ---
 
@@ -520,10 +520,10 @@ Your plugin is automatically:
 
 ### Content Update (SKILL.md changes, new commands)
 
-1. Modify files in `submissions/my-awesome-plugin/`
+1. Modify files in `submissions/<your-plugin-name>/`
 2. Bump `version` in plugin.yaml (e.g., `1.0.0` → `1.1.0`)
 3. Update CHANGELOG.md
-4. Open a PR with title: `[update] my-awesome-plugin v1.1.0`
+4. Open a PR with title: `[update] <your-plugin-name> v1.1.0`
 
 ### Chain or API Change (requires full review)
 
@@ -606,7 +606,7 @@ Your source code stays in your own GitHub repo. You provide the repo URL and a p
 
 ```yaml
 schema_version: 1
-name: my-binary-tool
+name: <your-plugin-name>
 version: "1.0.0"
 description: "My custom binary tool"
 author:
@@ -618,14 +618,14 @@ tags: [defi]
 
 components:
   skill:
-    dir: skills/my-binary-tool       # SKILL.md is ALWAYS required
+    dir: skills/<your-plugin-name>       # SKILL.md is ALWAYS required
 
 build:
   lang: rust                          # rust | go | typescript | node | python
-  source_repo: "your-username/my-binary-tool"  # Your GitHub repo with source code
+  source_repo: "your-username/<your-plugin-name>"  # Your GitHub repo with source code
   source_commit: "abc123def456..."    # Full 40-char commit SHA (pinned)
   source_dir: "."                     # Path within repo (default: root)
-  binary_name: my-binary-tool         # Name of the compiled output
+  binary_name: <your-plugin-name>         # Name of the compiled output
   # main: src/index.ts               # Required for typescript/python
 
 
@@ -649,16 +649,16 @@ git rev-parse HEAD              # get the full 40-char SHA
 Source code lives in your own repo. You only submit metadata + SKILL to the community repo:
 
 ```
-submissions/my-binary-tool/            ← In community repo (small, ~20KB)
+submissions/<your-plugin-name>/            ← In community repo (small, ~20KB)
   plugin.yaml                         # With build section pointing to your repo
-  skills/my-binary-tool/
+  skills/<your-plugin-name>/
     SKILL.md                          # The AI agent's entry point
     references/
   LICENSE
   CHANGELOG.md
   README.md
 
-your-username/my-binary-tool           ← Your own GitHub repo (source code)
+your-username/<your-plugin-name>           ← Your own GitHub repo (source code)
   Cargo.toml                          # (Rust example)
   src/
     main.rs
