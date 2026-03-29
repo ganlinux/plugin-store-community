@@ -1,0 +1,16 @@
+{
+  "name": "signal-tracker",
+  "version": "1.0.0",
+  "description": "CLI tool for tracking on-chain signals",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "bin": {
+    "signal-tracker": "dist/index.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
