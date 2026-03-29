@@ -102,6 +102,12 @@ plugin-store install my-plugin
 - See `submissions/_example-plugin/` for a complete reference plugin
 - Read the full [Development Guide](./PLUGIN_DEVELOPMENT_GUIDE.md) for troubleshooting
 
+## Contributors
+
+<a href="https://github.com/okx/plugin-store-community/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=okx/plugin-store-community" />
+</a>
+
 ## License
 
 Each plugin must include its own license. This repository is MIT licensed.
