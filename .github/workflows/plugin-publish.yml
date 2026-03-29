@@ -59,64 +59,76 @@ jobs:
             [ -f "$YAML_FILE" ] || continue
 
             NAME=$(yq '.name' "$YAML_FILE")
-            # Skip example plugin
             [ "$NAME" = "_example-plugin" ] && continue
 
             VERSION=$(yq '.version' "$YAML_FILE")
             DESC=$(yq '.description' "$YAML_FILE")
             AUTHOR_NAME=$(yq '.author.name' "$YAML_FILE")
-            AUTHOR_GITHUB=$(yq '.author.github' "$YAML_FILE")
             ALIAS=$(yq '.alias // ""' "$YAML_FILE")
-            LICENSE=$(yq '.license' "$YAML_FILE")
             CATEGORY=$(yq '.category' "$YAML_FILE")
             TAGS=$(yq '.tags | @json' "$YAML_FILE")
-            RISK_LEVEL=$(yq '.extra.risk_level // "low"' "$YAML_FILE")
-            PROTOCOLS=$(yq '.extra.protocols // [] | @json' "$YAML_FILE")
 
-            # Determine the skill component — community plugins store skills in this repo
-            SKILL_DIR=$(yq '.components.skill.dir // ""' "$YAML_FILE")
+            # Skill component
+            SKILL_DIR=$(yq '.components.skill.dir // .components.skills[0].dir // ""' "$YAML_FILE")
             SKILL_REPO="okx/plugin-store-community"
-
-            # Get the commit SHA of the current HEAD (pinned for security)
             COMMIT_SHA=$(git rev-parse HEAD)
 
-            # Build the registry entry
-            ENTRY=$(jq -n \
-              --arg name "$NAME" \
-              --arg alias "$ALIAS" \
-              --arg version "$VERSION" \
-              --arg desc "$DESC" \
-              --arg author "$AUTHOR_NAME" \
-              --arg category "$CATEGORY" \
-              --argjson tags "$TAGS" \
-              --arg repo "$SKILL_REPO" \
-              --arg dir "$SKILL_DIR" \
-              --arg commit "$COMMIT_SHA" \
-              --argjson protocols "$PROTOCOLS" \
-              --arg risk "$RISK_LEVEL" \
-              --arg link "https://github.com/${SKILL_REPO}" \
-              '{
-                name: $name,
-                alias: (if $alias == "" then null else $alias end),
-                version: $version,
-                description: $desc,
-                author: { name: $author },
-                category: $category,
-                tags: $tags,
-                type: "community-developer",
-                components: {
-                  skill: {
-                    repo: $repo,
-                    dir: $dir,
-                    commit: $commit
+            # Build config (for binary plugins)
+            BUILD_LANG=$(yq '.build.lang // ""' "$YAML_FILE")
+            BUILD_SOURCE_REPO=$(yq '.build.source_repo // ""' "$YAML_FILE")
+            BUILD_SOURCE_COMMIT=$(yq '.build.source_commit // ""' "$YAML_FILE")
+            BUILD_BINARY_NAME=$(yq '.build.binary_name // ""' "$YAML_FILE")
+
+            # Binary component
+            BINARY_REPO=$(yq '.components.binary.repo // ""' "$YAML_FILE")
+            BINARY_PATTERN=$(yq '.components.binary.asset_pattern // ""' "$YAML_FILE")
+            BINARY_CHECKSUMS=$(yq '.components.binary.checksums_asset // ""' "$YAML_FILE")
+
+            # Build the registry entry with all components
+            ENTRY=$(YAML_FILE="$YAML_FILE" BUILD_LANG="$BUILD_LANG" BUILD_SOURCE_REPO="$BUILD_SOURCE_REPO" \
+              BUILD_SOURCE_COMMIT="$BUILD_SOURCE_COMMIT" BUILD_BINARY_NAME="$BUILD_BINARY_NAME" \
+              BINARY_REPO="$BINARY_REPO" BINARY_PATTERN="$BINARY_PATTERN" BINARY_CHECKSUMS="$BINARY_CHECKSUMS" \
+              python3 << 'PYEOF'
+          import json, os
+          entry = {
+              "name": os.popen(f"yq '.name' {os.environ['YAML_FILE']}").read().strip(),
+              "version": os.popen(f"yq '.version' {os.environ['YAML_FILE']}").read().strip(),
+              "description": os.popen(f"yq '.description' {os.environ['YAML_FILE']}").read().strip(),
+              "author": {"name": os.popen(f"yq '.author.name' {os.environ['YAML_FILE']}").read().strip()},
+              "category": os.popen(f"yq '.category' {os.environ['YAML_FILE']}").read().strip(),
+              "tags": json.loads(os.popen(f"yq '.tags | @json' {os.environ['YAML_FILE']}").read().strip()),
+              "type": "community-developer",
+              "components": {
+                  "skill": {
+                      "repo": "okx/plugin-store-community",
+                      "dir": os.popen(f"yq '.components.skill.dir // .components.skills[0].dir // \"\"' {os.environ['YAML_FILE']}").read().strip(),
+                      "commit": os.popen("git rev-parse HEAD").read().strip()
                   }
-                },
-                extra: {
-                  protocols: $protocols,
-                  risk_level: $risk
-                },
-                link: $link
-              }')
+              },
+              "link": "https://github.com/okx/plugin-store-community"
+          }
+          alias_val = os.popen(f"yq '.alias // \"\"' {os.environ['YAML_FILE']}").read().strip()
+          if alias_val:
+              entry["alias"] = alias_val
+          # Add build config if present
+          if os.environ.get("BUILD_LANG"):
+              entry["build"] = {
+                  "lang": os.environ["BUILD_LANG"],
+                  "source_repo": os.environ["BUILD_SOURCE_REPO"],
+                  "source_commit": os.environ["BUILD_SOURCE_COMMIT"],
+                  "binary_name": os.environ["BUILD_BINARY_NAME"]
+              }
+          # Add binary component if present
+          if os.environ.get("BINARY_REPO"):
+              entry["components"]["binary"] = {
+                  "repo": os.environ["BINARY_REPO"],
+                  "asset_pattern": os.environ["BINARY_PATTERN"]
+              }
+              if os.environ.get("BINARY_CHECKSUMS"):
+                  entry["components"]["binary"]["checksums_asset"] = os.environ["BINARY_CHECKSUMS"]
+          print(json.dumps(entry))
+          PYEOF
+            )
 
             ENTRIES=$(echo "$ENTRIES" | jq --argjson entry "$ENTRY" '. + [$entry]')
           done
