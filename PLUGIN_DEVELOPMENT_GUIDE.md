@@ -759,7 +759,7 @@ cd your-tool && bun install && bun build --compile src/index.js --outfile your-t
 
 # Python
 cd your-tool && pip install pyinstaller && pyinstaller --onefile --name your-tool src/main.py
-# Verify: dist/your-tool exists
+# Verify: pip install succeeds and entry point responds
 ```
 
 If it doesn't compile with these exact commands, our CI won't be able to build it.
@@ -855,7 +855,7 @@ Open a PR from your fork to `okx/plugin-store-community`. Our CI will:
 | Rust | `Cargo.toml` | `cargo build --release` | Native binary |
 | Go | `go.mod` | `go build` | Native binary |
 | TypeScript | `package.json` + `build.main` | `bun build --compile` | Bundled binary |
-| Python | `pyproject.toml` + `build.main` | `PyInstaller` | Bundled binary |
+| Python | `pyproject.toml` + `build.main` | `pip install` | pip package (requires Python) |
 | Node.js | `package.json` + `build.main` | `bun build --compile` | Bundled binary |
 
 ### Build Config — Complete Examples for Each Language
@@ -944,8 +944,8 @@ build:
     - aarch64-apple-darwin
 ```
 
-CI runs: `pip install pyinstaller pip-audit` → `pip install -e .` → `pip-audit` → `pyinstaller --onefile --name your-tool src/main.py`
-Output: self-contained binary with embedded Python (~50-100MB)
+CI runs: `pip install -e .` → `pip-audit` (security scan) → verify entry point works
+Output: pip package (users install via `pip install` at runtime — requires Python 3.10+)
 
 #### Node.js
 

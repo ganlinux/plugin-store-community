@@ -892,7 +892,7 @@ git push origin submit/<your-plugin-name>
 | Rust | `Cargo.toml` | `cargo build --release` | 原生二进制 |
 | Go | `go.mod` | `go build` | 原生二进制 |
 | TypeScript | `package.json` + `build.main` | `bun build --compile` | 打包二进制 |
-| Python | `pyproject.toml` + `build.main` | `PyInstaller` | 打包二进制 |
+| Python | `pyproject.toml` + `build.main` | `pip install` | pip 包（需要 Python 运行时）|
 | Node.js | `package.json` + `build.main` | `bun build --compile` | 打包二进制 |
 
 ### Build 配置 — 每种语言的完整示例
@@ -981,8 +981,8 @@ build:
     - aarch64-apple-darwin
 ```
 
-CI 执行：`pip install pyinstaller pip-audit` → `pip install -e .` → `pip-audit` → `pyinstaller --onefile --name your-tool src/main.py`
-产物：内嵌 Python 解释器的独立二进制（约 50-100MB）
+CI 执行：`pip install -e .` → `pip-audit`（安全扫描）→ 验证入口可运行
+产物：pip 包（用户安装时通过 `pip install` 运行 — 需要 Python 3.10+）
 
 #### Node.js
 

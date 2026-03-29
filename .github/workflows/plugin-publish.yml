@@ -167,20 +167,9 @@ jobs:
                 bun build --compile --target="$BUN_TARGET" "$MAIN" --outfile "/tmp/${BIN}-${{ matrix.target }}"
                 ;;
               python)
-                # PyInstaller only on matching platform
-                if [ "${{ matrix.target }}" = "x86_64-unknown-linux-gnu" ] && [ "$(uname)" = "Linux" ]; then
-                  pip install pyinstaller
-                  pip install -e . 2>/dev/null || pip install -r requirements.txt 2>/dev/null || true
-                  pyinstaller --onefile --name "${BIN}" "$MAIN"
-                  cp "dist/${BIN}" "/tmp/${BIN}-${{ matrix.target }}"
-                elif [ "${{ matrix.target }}" != "x86_64-unknown-linux-gnu" ] && [ "$(uname)" = "Darwin" ]; then
-                  pip3 install pyinstaller
-                  pip3 install -e . 2>/dev/null || pip3 install -r requirements.txt 2>/dev/null || true
-                  pyinstaller --onefile --name "${BIN}" "$MAIN"
-                  cp "dist/${BIN}" "/tmp/${BIN}-${{ matrix.target }}"
-                else
-                  echo "Skipping Python build on mismatched platform"
-                fi
+                # Python is distributed as pip package, not binary.
+                # Skip compilation — users install via pip/pipx at runtime.
+                echo "Python plugin ${NAME}: no binary compilation needed (pip distribution)"
                 ;;
             esac
 
@@ -229,6 +218,14 @@ jobs:
             NAME=$(echo "$PLUGIN" | jq -r '.name')
             BIN=$(echo "$PLUGIN" | jq -r '.binary_name')
             VERSION=$(yq '.version' "submissions/${NAME}/plugin.yaml")
+
+            LANG=$(echo "$PLUGIN" | jq -r '.lang')
+
+            # Python plugins are pip-distributed, no binary release needed
+            if [ "$LANG" = "python" ]; then
+              echo "Skipping release for Python plugin ${NAME} (pip distribution)"
+              continue
+            fi
 
             echo "Creating release for ${NAME} v${VERSION}"
 
@@ -336,19 +333,28 @@ jobs:
           version = os.environ.get("VERSION", "")
 
           if lang and bin_name:
-              # Binary component pointing to our Release
-              entry["components"]["binary"] = {
-                  "repo": "okx/plugin-store",
-                  "asset_pattern": bin_name + "-{target}",
-                  "checksums_asset": "checksums.txt",
-                  "release_tag": f"community/{entry['name']}@{version}"
-              }
               entry["build"] = {
                   "lang": lang,
                   "source_repo": yq(".build.source_repo"),
                   "source_commit": yq(".build.source_commit"),
                   "binary_name": bin_name
               }
+              if lang == "python":
+                  # Python: pip install, not binary download
+                  entry["components"]["python"] = {
+                      "source_repo": yq(".build.source_repo"),
+                      "source_commit": yq(".build.source_commit"),
+                      "requires_python": yq('.build.requires_python // ">=3.10"'),
+                      "install_command": f"pip install git+https://github.com/{yq('.build.source_repo')}@{yq('.build.source_commit')}"
+                  }
+              else:
+                  # Compiled languages: binary download from Release
+                  entry["components"]["binary"] = {
+                      "repo": "okx/plugin-store",
+                      "asset_pattern": bin_name + "-{target}",
+                      "checksums_asset": "checksums.txt",
+                      "release_tag": f"community/{entry['name']}@{version}"
+                  }
 
           print(json.dumps(entry))
           PYEOF
