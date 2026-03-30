@@ -1,0 +1,25 @@
+schema_version: 1
+name: node-fs-tool
+version: "1.0.0"
+description: "A Node.js text echo CLI distributed via npm"
+author:
+  name: "yz06276"
+  github: "yz06276"
+license: MIT
+category: utility
+tags:
+  - node
+  - text-processing
+
+components:
+  skill:
+    dir: skills/node-fs-tool
+
+build:
+  lang: node
+  source_repo: "yz06276/node-echo-cli"
+  source_commit: "8044e759ecf00b6c1d17003b94a622cf1aa90872"
+  binary_name: node-echo-cli
+  main: src/index.js
+
+api_calls: []
