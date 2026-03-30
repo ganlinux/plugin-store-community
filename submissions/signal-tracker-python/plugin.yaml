@@ -1,0 +1,26 @@
+schema_version: 1
+name: signal-tracker-python
+alias: "Signal Tracker (Python)"
+version: "1.0.0"
+description: "Track smart money wallet activity and aggregated buy signals — Python implementation"
+author:
+  name: "Mingtao"
+  github: "ganlinux"
+license: MIT
+category: analytics
+tags:
+  - smart-money
+  - signals
+  - wallet-tracker
+  - python
+
+components:
+  skill:
+    dir: skills/signal-tracker-python
+  mcp:
+    type: pip
+    package: "signal-tracker-python"
+    command: signal-tracker-python
+
+api_calls:
+  - "www.okx.com"
