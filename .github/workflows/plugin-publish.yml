@@ -174,16 +174,9 @@ jobs:
                 CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o "/tmp/${BIN}-${{ matrix.target }}" -ldflags="-s -w" .
                 ;;
               typescript|node)
-                # Bun compile - determine bun target
-                case "${{ matrix.target }}" in
-                  x86_64-unknown-linux-gnu) BUN_TARGET="bun-linux-x64" ;;
-                  aarch64-apple-darwin) BUN_TARGET="bun-darwin-arm64" ;;
-                  x86_64-apple-darwin) BUN_TARGET="bun-darwin-x64" ;;
-                esac
-                curl -fsSL https://bun.sh/install | bash
-                export PATH="$HOME/.bun/bin:$PATH"
-                bun install
-                bun build --compile --target="$BUN_TARGET" "$MAIN" --outfile "/tmp/${BIN}-${{ matrix.target }}"
+                # TS/Node plugins are distributed via npm install, not binary.
+                # Skip compilation — users install via: npm install -g git+https://...
+                echo "TS/Node plugin ${NAME}: npm distribution, no binary compilation needed"
                 ;;
               python)
                 # Python is distributed as pip package, not binary.
@@ -240,9 +233,9 @@ jobs:
 
             LANG=$(echo "$PLUGIN" | jq -r '.lang')
 
-            # Python plugins are pip-distributed, no binary release needed
-            if [ "$LANG" = "python" ]; then
-              echo "Skipping release for Python plugin ${NAME} (pip distribution)"
+            # Python/TS/Node plugins are source-distributed, no binary release needed
+            if [ "$LANG" = "python" ] || [ "$LANG" = "typescript" ] || [ "$LANG" = "node" ]; then
+              echo "Skipping release for ${LANG} plugin ${NAME} (source distribution)"
               continue
             fi
 
@@ -366,8 +359,15 @@ jobs:
                       "requires_python": yq('.build.requires_python // ">=3.10"'),
                       "install_command": f"pip install git+https://github.com/{yq('.build.source_repo')}@{yq('.build.source_commit')}"
                   }
+              elif lang in ("typescript", "node"):
+                  # TS/Node: npm install from git, not binary
+                  entry["components"]["npm"] = {
+                      "source_repo": yq(".build.source_repo"),
+                      "source_commit": yq(".build.source_commit"),
+                      "install_command": f"npm install -g git+https://github.com/{yq('.build.source_repo')}@{yq('.build.source_commit')}"
+                  }
               else:
-                  # Compiled languages: binary download from Release
+                  # Compiled languages (rust, go): binary download from Release
                   entry["components"]["binary"] = {
                       "repo": "okx/plugin-store",
                       "asset_pattern": bin_name + "-{target}",
