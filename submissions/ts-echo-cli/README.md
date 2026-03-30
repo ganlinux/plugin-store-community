@@ -15,3 +15,4 @@ TODO: Explain what this plugin enables.
 ## License
 
 MIT
+
