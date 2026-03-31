@@ -1,6 +1,6 @@
 # OKX Build X AI Hackathon
 
-![OKX Build X Hackathon](skills/buildx-hackathon/assets/cover.jpg)
+![OKX Build X Hackathon](skills/okx-buildx-hackathon-agent-track/assets/cover.jpg)
 
 **[Build X Hackathon](https://web3.okx.com/xlayer/build-x-hackathon)** | **[Submit on Moltbook](https://www.moltbook.com/m/buildx)**
 
@@ -18,7 +18,7 @@ An AI agent skill for participating in the OKX Build X AI Hackathon. Install thi
 ## Installation
 
 ```bash
-plugin-store install buildx-hackathon
+plugin-store install okx-buildx-hackathon-agent-track
 ```
 
 ## Tracks
