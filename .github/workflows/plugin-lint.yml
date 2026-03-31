@@ -102,8 +102,36 @@ jobs:
       - name: Install plugin-store CLI
         run: cargo install --git https://github.com/okx/plugin-store.git plugin-store
 
+      - name: Check if PR author is OKX org member
+        id: org_check
+        run: |
+          AUTHOR="${{ github.event.pull_request.user.login }}"
+          HEAD_REPO="${{ github.event.pull_request.head.repo.full_name }}"
+
+          # Method 1: PR comes from okx/ org repo (direct push)
+          if echo "$HEAD_REPO" | grep -q "^okx/"; then
+            echo "is_okx_member=true" >> "$GITHUB_OUTPUT"
+            echo "${AUTHOR} pushed from okx/ org repo — official prefix allowed"
+            exit 0
+          fi
+
+          # Method 2: Check if author is a public member of okx org
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://api.github.com/orgs/okx/members/${AUTHOR}" \
+            -H "Authorization: Bearer ${{ github.token }}")
+
+          if [ "$HTTP_CODE" = "204" ]; then
+            echo "is_okx_member=true" >> "$GITHUB_OUTPUT"
+            echo "${AUTHOR} is an OKX org member — official prefix allowed"
+          else
+            echo "is_okx_member=false" >> "$GITHUB_OUTPUT"
+            echo "${AUTHOR} is not an OKX org member (HTTP ${HTTP_CODE})"
+          fi
+
       - name: Run lint
         id: lint
+        env:
+          PLUGIN_STORE_OFFICIAL: ${{ steps.org_check.outputs.is_okx_member == 'true' && '1' || '0' }}
         run: |
           set +e
           OUTPUT=$(plugin-store lint "${{ needs.detect-plugin.outputs.plugin_dir }}" 2>&1)
