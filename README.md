@@ -1,3 +1,11 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/cover-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="assets/cover-light.png">
+    <img alt="Plugin Store Community" src="assets/cover-light.png" width="100%">
+  </picture>
+</p>
+
 # Plugin Store Community
 
 Submit your plugin to the [Plugin Store](https://github.com/okx/plugin-store) ecosystem in 5 minutes.
