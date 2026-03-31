@@ -323,35 +323,39 @@ jobs:
           PROVIDER="${{ steps.provider.outputs.provider }}"
           echo "Using model: ${MODEL} via ${PROVIDER}"
 
+          # Build the full API request in one jq call — avoids shell ARG_MAX limits
+          # by using --rawfile to read large files directly, never passing through $variables.
           ONCHAINOS_AVAILABLE="${{ steps.onchainos.outputs.available }}"
           if [ "$ONCHAINOS_AVAILABLE" = "true" ] && [ -f /tmp/onchainos_context.txt ]; then
-            USER_CONTENT=$(jq -n \
+            jq -n \
+              --arg model "$MODEL" \
               --rawfile system /tmp/system_prompt.txt \
               --rawfile rules /tmp/security_rules.txt \
               --rawfile onchainos /tmp/onchainos_context.txt \
               --rawfile plugin /tmp/plugin_content.txt \
-              '$system + "\n\n---\n\n" + $rules + "\n\n---\n\n" + $onchainos + "\n\n---\n\n" + $plugin')
+              '{
+                model: $model,
+                max_tokens: 16384,
+                messages: [{
+                  role: "user",
+                  content: ($system + "\n\n---\n\n" + $rules + "\n\n---\n\n" + $onchainos + "\n\n---\n\n" + $plugin)
+                }]
+              }' > /tmp/api_request.json
           else
-            USER_CONTENT=$(jq -n \
+            jq -n \
+              --arg model "$MODEL" \
               --rawfile system /tmp/system_prompt.txt \
               --rawfile rules /tmp/security_rules.txt \
               --rawfile plugin /tmp/plugin_content.txt \
-              '$system + "\n\n---\n\n" + $rules + "\n\n---\n\n(onchainos source not available)\n\n---\n\n" + $plugin')
+              '{
+                model: $model,
+                max_tokens: 16384,
+                messages: [{
+                  role: "user",
+                  content: ($system + "\n\n---\n\n" + $rules + "\n\n---\n\n(onchainos source not available)\n\n---\n\n" + $plugin)
+                }]
+              }' > /tmp/api_request.json
           fi
-
-          # Both Anthropic and OpenRouter accept the same messages format
-          jq -n \
-            --arg model "$MODEL" \
-            --argjson content "$USER_CONTENT" \
-            '{
-              model: $model,
-              max_tokens: 16384,
-              messages: [{ role: "user", content: $content }]
-            }' > /tmp/api_request.json
-
-          # Anthropic requires anthropic-version header and uses slightly different format,
-          # but the Messages API also accepts the OpenAI-style messages array.
-          # For Anthropic native API, we keep the same request body — it works.
 
           SIZE=$(wc -c < /tmp/api_request.json)
           echo "Total API request: ${SIZE} bytes"
