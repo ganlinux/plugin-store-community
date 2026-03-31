@@ -369,25 +369,21 @@ jobs:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           PROVIDER="${{ steps.provider.outputs.provider }}"
-          API_URL="${{ steps.provider.outputs.api_url }}"
 
           if [ "$PROVIDER" = "openrouter" ]; then
-            AUTH_HEADER="Authorization: Bearer ${OPENROUTER_API_KEY}"
+            HTTP_CODE=$(curl -s -o /tmp/api_response.json -w "%{http_code}" \
+              https://openrouter.ai/api/v1/chat/completions \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
+              -d @/tmp/api_request.json)
           else
-            AUTH_HEADER="x-api-key: ${ANTHROPIC_API_KEY}"
+            HTTP_CODE=$(curl -s -o /tmp/api_response.json -w "%{http_code}" \
+              https://api.anthropic.com/v1/messages \
+              -H "Content-Type: application/json" \
+              -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+              -H "anthropic-version: 2023-06-01" \
+              -d @/tmp/api_request.json)
           fi
-
-          EXTRA_HEADERS=""
-          if [ "$PROVIDER" = "anthropic" ]; then
-            EXTRA_HEADERS="-H \"anthropic-version: 2023-06-01\""
-          fi
-
-          HTTP_CODE=$(eval curl -s -o /tmp/api_response.json -w '%{http_code}' \
-            "$API_URL" \
-            -H "Content-Type: application/json" \
-            -H "'$AUTH_HEADER'" \
-            $EXTRA_HEADERS \
-            -d @/tmp/api_request.json)
 
           echo "HTTP status: ${HTTP_CODE} (provider: ${PROVIDER})"
 
