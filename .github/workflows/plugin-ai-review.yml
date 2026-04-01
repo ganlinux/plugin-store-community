@@ -323,13 +323,7 @@ jobs:
                 EXT="${src_file##*.}"
                 echo "## Source: ${REL_PATH} (${FILE_LINES} lines)"
                 echo "\`\`\`${EXT}"
-                if [ "$FILE_LINES" -gt 500 ]; then
-                  head -500 "$src_file"
-                  echo ""
-                  echo "... (truncated, ${FILE_LINES} total lines)"
-                else
-                  cat "$src_file"
-                fi
+                cat "$src_file"
                 echo '```'
                 echo ""
               done
@@ -359,13 +353,7 @@ jobs:
                 EXT="${src_file##*.}"
                 echo "## Source: ${REL_PATH} (${FILE_LINES} lines)"
                 echo "\`\`\`${EXT}"
-                if [ "$FILE_LINES" -gt 300 ]; then
-                  head -300 "$src_file"
-                  echo ""
-                  echo "... (truncated, ${FILE_LINES} total lines)"
-                else
-                  cat "$src_file"
-                fi
+                cat "$src_file"
                 echo '```'
                 echo ""
               done
