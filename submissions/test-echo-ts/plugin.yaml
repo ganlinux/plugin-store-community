@@ -1,0 +1,21 @@
+schema_version: 1
+name: test-echo-ts
+version: "1.0.0"
+description: "Test echo CLI built in TypeScript"
+author:
+  name: "yz06276"
+  github: "yz06276"
+license: MIT
+category: utility
+tags: [test, typescript]
+components:
+  skill:
+    repo: "yz06276/test-echo-ts"
+    commit: "db760aff5d5f029927dc00a15a131a0445c95d23"
+build:
+  lang: typescript
+  source_repo: "yz06276/test-echo-ts"
+  source_commit: "db760aff5d5f029927dc00a15a131a0445c95d23"
+  binary_name: "test-echo-ts"
+  main: src/index.ts
+api_calls: []
