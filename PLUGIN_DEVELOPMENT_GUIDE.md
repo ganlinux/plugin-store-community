@@ -14,6 +14,8 @@
 6. [Step 4: Declare API Calls](#6-step-4-declare-api-calls)
 7. [Step 5: Local Validation](#7-step-5-local-validation)
 8. [Step 6: Submit via Pull Request](#8-step-6-submit-via-pull-request)
+8b. [Alternative: Submit via External Repository (Mode B)](#8b-alternative-submit-via-external-repository-mode-b)
+8c. [Alternative: One-Click Import (Mode C)](#8c-alternative-one-click-import-mode-c)
 9. [What Happens After Submission](#9-what-happens-after-submission)
 10. [Updating Your Plugin](#10-updating-your-plugin)
 11. [Rules & Restrictions](#11-rules--restrictions)
@@ -480,6 +482,100 @@ The PR template will guide you through the checklist.
 
 ---
 
+## 8b. Alternative: Submit via External Repository (Mode B)
+
+If your plugin has source code (Python scripts, Rust/Go binaries), you can keep everything in your own GitHub repo and submit just a `plugin.yaml` pointer.
+
+### Your repo structure (Claude marketplace compatible)
+
+```
+your-username/my-plugin/
+├── .claude-plugin/
+│   └── plugin.json           # Optional: makes it Claude marketplace compatible
+├── skills/
+│   └── my-plugin/
+│       └── SKILL.md
+├── scripts/
+│   ├── bot.py
+│   └── config.py
+├── assets/
+│   └── dashboard.html
+├── src/                       # Rust/Go source (optional, for compiled plugins)
+│   └── main.rs
+├── Cargo.toml                 # Only if Rust (optional)
+├── LICENSE
+└── README.md
+```
+
+### Submit to community repo
+
+Your submission is minimal — just a `plugin.yaml` pointer:
+
+```
+submissions/my-plugin/
+├── plugin.yaml
+├── LICENSE
+└── README.md
+```
+
+plugin.yaml for Python/script plugins:
+```yaml
+schema_version: 1
+name: my-plugin
+version: "1.0.0"
+description: "What your plugin does"
+author:
+  name: "Your Name"
+  github: "your-username"
+license: MIT
+category: utility
+tags: [keywords]
+
+components:
+  skill:
+    repo: "your-username/my-plugin"
+    commit: "full-40-char-sha"
+
+api_calls: []
+```
+
+plugin.yaml for Rust/Go compiled plugins (add build section):
+```yaml
+# ... same as above, plus:
+build:
+  lang: rust
+  source_repo: "your-username/my-plugin"
+  source_commit: "full-40-char-sha"
+  binary_name: "my-tool"
+```
+
+After merge, our CI automatically:
+1. Copies your SKILL.md + scripts into community repo (persistent backup)
+2. Compiles Rust/Go binaries and stores in community repo Release
+3. Updates registry.json
+
+---
+
+## 8c. Alternative: One-Click Import (Mode C)
+
+If you already have a Claude marketplace compatible repo, import it with one command:
+
+```bash
+plugin-store import your-username/my-plugin
+```
+
+This automatically:
+1. Reads your `.claude-plugin/plugin.json` and `skills/` directory
+2. Detects build language (Rust/Go/Python/Node)
+3. Generates `plugin.yaml`
+4. Forks community repo, creates branch, opens PR
+
+You don't need to write any `plugin.yaml` — the CLI does it for you.
+
+Pre-requisites: `gh` CLI installed and logged in (`gh auth login`).
+
+---
+
 ## 9. What Happens After Submission
 
 ### Automated Checks (~5 minutes)
@@ -591,7 +687,7 @@ onchainos market price --address <TOKEN_ADDRESS> --chain solana
 
 ### Who Can Submit Source Code?
 
-Any developer can submit source code for binary compilation. Submit your source code in your own GitHub repo, add a `build` section to plugin.yaml, and our CI will compile it.
+Any developer can submit source code for binary compilation. Submit your source code in your own GitHub repo, add a `build` section to plugin.yaml, and our CI will compile it. Your external repo can also follow the Claude marketplace structure (with `.claude-plugin/plugin.json` and `skills/` directory) — see [Mode B](#8b-alternative-submit-via-external-repository-mode-b) for details on that layout.
 
 ### How It Works
 

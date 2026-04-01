@@ -62,7 +62,24 @@ Then edit `SKILL.md` — it teaches the AI agent how to use your plugin. The gen
 
 > **Important:** All on-chain interactions — wallet signing, transaction broadcasting, swap execution, contract calls — **must** use [onchainos CLI](https://github.com/okx/onchainos-skills). You are free to query external data sources (third-party DeFi APIs, market data providers, etc.), but any action that touches the blockchain must go through onchainos. Plugins that bypass onchainos for on-chain operations will be rejected.
 
-**Want to include a CLI binary?** Add a `build` section to plugin.yaml pointing to your source repo. Our CI compiles Rust/Go into native binaries; TS/Node are distributed via `npm install`; Python via `pip install`. See the [Development Guide](./PLUGIN_DEVELOPMENT_GUIDE.md#section-13) for details.
+**Want to include source code (Python scripts, Rust/Go binaries)?** Two options:
+
+- **Option A:** Add files directly to `submissions/<name>/skills/<name>/scripts/`
+- **Option B:** Keep everything in your own repo, submit just a `plugin.yaml` pointer:
+  ```yaml
+  components:
+    skill:
+      repo: "your-username/my-plugin"    # your repo
+      commit: "abc123..."                 # pinned commit
+  ```
+  Your repo can follow [Claude marketplace format](https://code.claude.com/docs/en/plugins-reference) — one repo, two ecosystems.
+
+**Already have a Claude marketplace repo?** Import with one command:
+```bash
+plugin-store import your-username/my-plugin
+```
+
+See the [Development Guide](./PLUGIN_DEVELOPMENT_GUIDE.md) for full details on all three submission modes.
 
 ### Step 3: Check locally
 

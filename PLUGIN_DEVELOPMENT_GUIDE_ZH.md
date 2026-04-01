@@ -14,6 +14,8 @@
 6. [第四步：声明 API 调用](#section-6)
 7. [第五步：本地验证](#section-7)
 8. [第六步：通过 Pull Request 提交](#section-8)
+8b. [替代方式：通过外链仓库提交（模式 B）](#section-8b)
+8c. [替代方式：一键导入（模式 C）](#section-8c)
 9. [提交后会发生什么](#section-9)
 10. [更新你的 plugin](#section-10)
 11. [规则与限制](#section-11)
@@ -503,6 +505,108 @@ PR 模板会引导你完成检查清单。
 - 只修改 `submissions/你的 plugin 名/` 目录下的文件
 - 不要修改其他文件（README.md、workflows 等）
 - 目录名必须与 plugin.yaml 中的 `name` 字段一致
+
+---
+
+<a id="section-8b"></a>
+
+## 8b. 替代方式：通过外链仓库提交（模式 B）
+
+如果你的 plugin 包含源码（Python 脚本、Rust/Go 二进制），你可以把所有内容放在自己的 GitHub 仓库中，只提交一个 `plugin.yaml` 指针到 community repo。
+
+### 你的仓库结构（兼容 Claude marketplace）
+
+```
+your-username/my-plugin/
+├── .claude-plugin/
+│   └── plugin.json           # 可选：兼容 Claude marketplace
+├── skills/
+│   └── my-plugin/
+│       └── SKILL.md
+├── scripts/
+│   ├── bot.py
+│   └── config.py
+├── assets/
+│   └── dashboard.html
+├── src/                       # Rust/Go 源码（可选）
+│   └── main.rs
+├── Cargo.toml                 # 仅 Rust（可选）
+├── LICENSE
+└── README.md
+```
+
+### 提交到 community repo
+
+你的提交非常轻量——只需一个 `plugin.yaml` 指针：
+
+```
+submissions/my-plugin/
+├── plugin.yaml
+├── LICENSE
+└── README.md
+```
+
+Python/脚本类 plugin 的 plugin.yaml：
+```yaml
+schema_version: 1
+name: my-plugin
+version: "1.0.0"
+description: "你的 plugin 做什么"
+author:
+  name: "你的名字"
+  github: "your-username"
+license: MIT
+category: utility
+tags: [关键词]
+
+components:
+  skill:
+    repo: "your-username/my-plugin"
+    commit: "完整的40位commit-sha"
+
+api_calls: []
+```
+
+Rust/Go 编译类 plugin（额外加 build 字段）：
+```yaml
+# ... 同上，加上：
+build:
+  lang: rust
+  source_repo: "your-username/my-plugin"
+  source_commit: "完整的40位commit-sha"
+  binary_name: "my-tool"
+```
+
+合并后我们的 CI 自动：
+1. 拷贝你的 SKILL.md + 脚本到 community 仓库（持久化备份）
+2. 编译 Rust/Go 二进制到 community 仓库 Release
+3. 更新 registry.json
+
+### 好处
+
+- 一个仓库，同时兼容 Claude marketplace 和 plugin-store
+- 你的仓库加上 `.claude-plugin/plugin.json` 就能直接被 Claude marketplace 识别
+- community repo 只存指针，不重复存储源码
+
+<a id="section-8c"></a>
+
+## 8c. 替代方式：一键导入（模式 C）
+
+如果你已有一个 Claude marketplace 兼容仓库，一条命令完成上架：
+
+```bash
+plugin-store import your-username/my-plugin
+```
+
+自动完成：
+1. 读取你的 `.claude-plugin/plugin.json` 和 `skills/` 目录
+2. 检测编译语言（Rust/Go/Python/Node）
+3. 生成 `plugin.yaml`
+4. Fork community repo，创建分支，提交 PR
+
+你不需要手写 `plugin.yaml`——CLI 帮你生成。
+
+前置条件：`gh` CLI 已安装并登录（`gh auth login`）。
 
 ---
 
