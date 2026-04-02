@@ -477,6 +477,8 @@ jobs:
               "homepage": f"{GUI}/submissions/{name}",
               "readme_url": f"{BASE}/submissions/{name}/README.md",
               "skill_url": f"{BASE}/{skill_md_path}" if skill_md_path else "",
+              "summary_url": f"{BASE}/submissions/{name}/SUMMARY.md",
+              "skill_summary_url": f"{BASE}/submissions/{name}/SKILL_SUMMARY.md",
           }
 
 
@@ -556,8 +558,8 @@ jobs:
             echo "Tag count ${COUNT}/${MAX_TAGS} — within limit"
           fi
 
-      # ── Generate skill_summary for each changed plugin via Claude ──
-      - name: Generate skill summaries
+      # ── Generate SUMMARY.md + SKILL_SUMMARY.md for each changed plugin via Claude ──
+      - name: Generate summaries
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
@@ -566,68 +568,132 @@ jobs:
           CHANGED="${{ needs.detect.outputs.changed_plugins }}"
           [ -z "$CHANGED" ] && exit 0
 
+          SUMMARIES_GENERATED=false
+
           for NAME in $CHANGED; do
-            echo "Generating summary for: $NAME"
+            echo "=== Generating summaries for: $NAME ==="
             YAML="submissions/${NAME}/plugin.yaml"
             [ -f "$YAML" ] || continue
 
-            # ── Find SKILL.md: local → external repo ──
+            # ── Resolve SKILL.md from any source ──
             SKILL_CONTENT=""
 
-            # Try local skills/ directory
-            if [ -f "skills/${NAME}/SKILL.md" ]; then
-              SKILL_CONTENT=$(cat "skills/${NAME}/SKILL.md")
+            # Source 1: local skills/<name>/ (post-copy canonical location)
+            if [ -z "$SKILL_CONTENT" ]; then
+              FOUND=$(find "skills/${NAME}" -name "SKILL.md" -type f 2>/dev/null | head -1)
+              [ -n "$FOUND" ] && SKILL_CONTENT=$(cat "$FOUND") && echo "  Source: skills/${NAME}/"
             fi
 
-            # Try submissions/ directory
+            # Source 2: submissions/<name>/ (Mode A direct upload)
             if [ -z "$SKILL_CONTENT" ]; then
               FOUND=$(find "submissions/${NAME}" -name "SKILL.md" -type f 2>/dev/null | head -1)
-              [ -n "$FOUND" ] && SKILL_CONTENT=$(cat "$FOUND")
+              [ -n "$FOUND" ] && SKILL_CONTENT=$(cat "$FOUND") && echo "  Source: submissions/${NAME}/"
             fi
 
-            # Try external repo (Mode B/C)
+            # Source 3: external repo via plugin.yaml components.skill.repo (Mode B/C)
             if [ -z "$SKILL_CONTENT" ]; then
               EXT_REPO=$(yq '.components.skill.repo // ""' "$YAML")
               EXT_COMMIT=$(yq '.components.skill.commit // ""' "$YAML")
               if [ -n "$EXT_REPO" ] && [ "$EXT_REPO" != "okx/plugin-store-community" ]; then
                 REF="${EXT_COMMIT:-main}"
-                # Try common SKILL.md locations in external repo
-                for path in "SKILL.md" "skill.md" "skills/${NAME}/SKILL.md" "skills/SKILL.md"; do
+                echo "  Fetching from external repo: ${EXT_REPO}@${REF}"
+                for path in "SKILL.md" "skill.md" "skills/${NAME}/SKILL.md"; do
                   SKILL_CONTENT=$(curl -sSL --max-time 10 \
                     "https://raw.githubusercontent.com/${EXT_REPO}/${REF}/${path}" 2>/dev/null || true)
-                  [ -n "$SKILL_CONTENT" ] && [ "$(echo "$SKILL_CONTENT" | head -1)" != "404" ] && break
+                  [ -n "$SKILL_CONTENT" ] && echo "$SKILL_CONTENT" | head -1 | grep -q "^---\|^#" && break
                   SKILL_CONTENT=""
                 done
-                # If still empty, try recursive tree search
-                if [ -z "$SKILL_CONTENT" ]; then
-                  SKILL_PATH=$(curl -sSL --max-time 10 \
-                    "https://api.github.com/repos/${EXT_REPO}/git/trees/${REF}?recursive=1" 2>/dev/null \
-                    | jq -r '.tree[]? | select(.path | test("SKILL\\.md$"; "i")) | .path' | head -1)
-                  [ -n "$SKILL_PATH" ] && SKILL_CONTENT=$(curl -sSL --max-time 10 \
-                    "https://raw.githubusercontent.com/${EXT_REPO}/${REF}/${SKILL_PATH}" 2>/dev/null || true)
+              fi
+            fi
+
+            # Source 4: external repo with no commit (stub plugins like uniswap-*)
+            # The stub SKILL.md may link to a parent repo — follow the link
+            if [ -z "$SKILL_CONTENT" ] || echo "$SKILL_CONTENT" | grep -q "Install the full version"; then
+              # Check if stub points to another repo
+              STUB_REPO=$(echo "$SKILL_CONTENT" | grep -oE 'github\.com/[^/]+/[^/)]+' | head -1 | sed 's|github.com/||')
+              if [ -n "$STUB_REPO" ]; then
+                echo "  Following stub link to: ${STUB_REPO}"
+                # Search for SKILL.md in the linked repo
+                TREE=$(curl -sSL --max-time 15 \
+                  "https://api.github.com/repos/${STUB_REPO}/git/trees/main?recursive=1" 2>/dev/null)
+                # Find SKILL.md files matching this plugin's name pattern
+                PLUGIN_SHORT=$(echo "$NAME" | sed 's/^uniswap-//')
+                SKILL_PATHS=$(echo "$TREE" | jq -r ".tree[]? | select(.path | test(\"${PLUGIN_SHORT}.*SKILL\\.md$\"; \"i\")) | .path" 2>/dev/null)
+                if [ -z "$SKILL_PATHS" ]; then
+                  SKILL_PATHS=$(echo "$TREE" | jq -r '.tree[]? | select(.path | test("SKILL\\.md$"; "i")) | .path' 2>/dev/null | head -3)
                 fi
+                for SP in $SKILL_PATHS; do
+                  CANDIDATE=$(curl -sSL --max-time 10 \
+                    "https://raw.githubusercontent.com/${STUB_REPO}/main/${SP}" 2>/dev/null || true)
+                  if [ -n "$CANDIDATE" ] && echo "$CANDIDATE" | head -1 | grep -q "^---\|^#"; then
+                    SKILL_CONTENT="$CANDIDATE"
+                    echo "  Found: ${STUB_REPO}/${SP} ($(echo "$CANDIDATE" | wc -l | tr -d ' ') lines)"
+                    break
+                  fi
+                done
               fi
             fi
 
             if [ -z "$SKILL_CONTENT" ]; then
-              echo "  No SKILL.md found for $NAME, skipping summary"
+              echo "  No SKILL.md found, skipping"
               continue
             fi
 
             SKILL_LEN=$(echo "$SKILL_CONTENT" | wc -c | tr -d ' ')
-            echo "  SKILL.md: ${SKILL_LEN} bytes"
+            echo "  SKILL.md resolved: ${SKILL_LEN} bytes"
 
-            # ── Call Claude to extract structured summary ──
+            # Also read README.md and plugin.yaml for context
+            README_CONTENT=""
+            [ -f "submissions/${NAME}/README.md" ] && README_CONTENT=$(cat "submissions/${NAME}/README.md")
+            YAML_CONTENT=$(cat "$YAML")
+
+            # ── Call Claude to generate both SUMMARY.md and SKILL_SUMMARY.md ──
+            PROMPT="You are generating documentation for plugin \"${NAME}\".
+
+Given the SKILL.md, README.md, and plugin.yaml below, generate TWO markdown files.
+
+=== OUTPUT FORMAT ===
+Output exactly two sections separated by the line: ---SEPARATOR---
+
+FIRST section is SUMMARY.md:
+# <plugin-name>
+<one sentence description>
+## Highlights
+- <feature 1>
+- <feature 2>
+- ...up to 8 highlights
+
+SECOND section is SKILL_SUMMARY.md:
+# <plugin-name> — Skill Summary
+## Overview
+<one paragraph functional overview>
+## Usage
+<how to use/start, 1-3 sentences>
+## Commands
+<table or list of CLI commands, if any. Write 'This is a reference skill with no CLI commands.' if none>
+## Triggers
+<when an AI agent should activate this skill, 1-2 sentences>
+
+=== INPUT ===
+
+plugin.yaml:
+${YAML_CONTENT}
+
+README.md:
+${README_CONTENT}
+
+SKILL.md (may be truncated):
+$(echo "$SKILL_CONTENT" | head -500)"
+
+            # Write prompt to file to avoid ARG_MAX
+            echo "$PROMPT" > /tmp/prompt.txt
+
             jq -n \
-              --arg skill "$SKILL_CONTENT" \
-              --arg name "$NAME" \
+              --rawfile prompt /tmp/prompt.txt \
               '{
                 model: "claude-sonnet-4-20250514",
-                max_tokens: 1024,
-                messages: [{
-                  role: "user",
-                  content: ("Extract a structured summary from this SKILL.md for plugin \"" + $name + "\". Return ONLY valid JSON, no markdown fences:\n{\"overview\": \"one paragraph functional overview\", \"usage\": \"how to use/start this plugin (1-2 sentences)\", \"commands\": [\"command1: description\", \"command2: description\"], \"triggers\": \"when should an AI agent activate this skill (1 sentence)\"}\n\nIf there are no CLI commands, set commands to an empty array. If the SKILL.md is a stub/redirect, extract what you can from the available text.\n\nSKILL.md content:\n" + $skill)
-                }]
+                max_tokens: 2048,
+                messages: [{role: "user", content: $prompt}]
               }' > /tmp/summary_request.json
 
             HTTP_CODE=$(curl -s -o /tmp/summary_response.json -w "%{http_code}" \
@@ -638,38 +704,38 @@ jobs:
               -d @/tmp/summary_request.json)
 
             if [ "$HTTP_CODE" = "200" ]; then
-              SUMMARY=$(jq -r '.content[0].text // ""' /tmp/summary_response.json)
-              # Validate it's valid JSON
-              if echo "$SUMMARY" | jq . >/dev/null 2>&1; then
-                # Write to a per-plugin summary file
-                echo "$SUMMARY" > "/tmp/summary-${NAME}.json"
-                echo "  Summary generated"
+              RESPONSE=$(jq -r '.content[0].text // ""' /tmp/summary_response.json)
+
+              # Split by separator
+              SUMMARY_MD=$(echo "$RESPONSE" | sed -n '1,/---SEPARATOR---/p' | sed '/---SEPARATOR---/d')
+              SKILL_SUMMARY_MD=$(echo "$RESPONSE" | sed -n '/---SEPARATOR---/,$p' | sed '1d')
+
+              if [ -n "$SUMMARY_MD" ] && [ -n "$SKILL_SUMMARY_MD" ]; then
+                echo "$SUMMARY_MD" > "submissions/${NAME}/SUMMARY.md"
+                echo "$SKILL_SUMMARY_MD" > "submissions/${NAME}/SKILL_SUMMARY.md"
+                SUMMARIES_GENERATED=true
+                echo "  Generated SUMMARY.md ($(echo "$SUMMARY_MD" | wc -l | tr -d ' ') lines)"
+                echo "  Generated SKILL_SUMMARY.md ($(echo "$SKILL_SUMMARY_MD" | wc -l | tr -d ' ') lines)"
               else
-                echo "  Invalid JSON from Claude, skipping"
+                echo "  Failed to split response, skipping"
               fi
             else
-              echo "  API error (HTTP $HTTP_CODE), skipping summary"
+              echo "  API error (HTTP $HTTP_CODE), skipping"
             fi
 
             # Rate limit protection
-            sleep 2
+            sleep 3
           done
 
-          # Inject summaries into community_entries.json
-          if [ -f /tmp/community_entries.json ]; then
-            python3 << 'PYEOF'
-          import json, os, glob
-          with open("/tmp/community_entries.json") as f:
-              entries = json.load(f)
-          for entry in entries:
-              sf = f"/tmp/summary-{entry['name']}.json"
-              if os.path.exists(sf):
-                  with open(sf) as f:
-                      entry["skill_summary"] = json.load(f)
-                  print(f"  Injected summary: {entry['name']}")
-          with open("/tmp/community_entries.json", "w") as f:
-              json.dump(entries, f, indent=2, ensure_ascii=False)
-          PYEOF
+          # Commit generated summaries
+          if [ "$SUMMARIES_GENERATED" = "true" ]; then
+            git config user.name "plugin-store-bot"
+            git config user.email "bot@plugin-store.local"
+            git add submissions/*/SUMMARY.md submissions/*/SKILL_SUMMARY.md 2>/dev/null || true
+            git diff --staged --quiet && echo "No new summaries" || {
+              git commit -m "auto: generate SUMMARY.md + SKILL_SUMMARY.md for plugins"
+              git push
+            }
           fi
 
       - name: Update registry in plugin-store repo
@@ -694,7 +760,6 @@ jobs:
                 $entry
                 + (if $existing.link then {link: $existing.link} else {} end)
                 + (if $existing.extra then {extra: $existing.extra} else {} end)
-                + (if $existing.skill_summary then {skill_summary: $existing.skill_summary} else {} end)
               else $entry end
             ]')
 
