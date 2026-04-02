@@ -556,6 +556,122 @@ jobs:
             echo "Tag count ${COUNT}/${MAX_TAGS} — within limit"
           fi
 
+      # ── Generate skill_summary for each changed plugin via Claude ──
+      - name: Generate skill summaries
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          [ -z "$ANTHROPIC_API_KEY" ] && echo "No API key, skipping summaries" && exit 0
+
+          CHANGED="${{ needs.detect.outputs.changed_plugins }}"
+          [ -z "$CHANGED" ] && exit 0
+
+          for NAME in $CHANGED; do
+            echo "Generating summary for: $NAME"
+            YAML="submissions/${NAME}/plugin.yaml"
+            [ -f "$YAML" ] || continue
+
+            # ── Find SKILL.md: local → external repo ──
+            SKILL_CONTENT=""
+
+            # Try local skills/ directory
+            if [ -f "skills/${NAME}/SKILL.md" ]; then
+              SKILL_CONTENT=$(cat "skills/${NAME}/SKILL.md")
+            fi
+
+            # Try submissions/ directory
+            if [ -z "$SKILL_CONTENT" ]; then
+              FOUND=$(find "submissions/${NAME}" -name "SKILL.md" -type f 2>/dev/null | head -1)
+              [ -n "$FOUND" ] && SKILL_CONTENT=$(cat "$FOUND")
+            fi
+
+            # Try external repo (Mode B/C)
+            if [ -z "$SKILL_CONTENT" ]; then
+              EXT_REPO=$(yq '.components.skill.repo // ""' "$YAML")
+              EXT_COMMIT=$(yq '.components.skill.commit // ""' "$YAML")
+              if [ -n "$EXT_REPO" ] && [ "$EXT_REPO" != "okx/plugin-store-community" ]; then
+                REF="${EXT_COMMIT:-main}"
+                # Try common SKILL.md locations in external repo
+                for path in "SKILL.md" "skill.md" "skills/${NAME}/SKILL.md" "skills/SKILL.md"; do
+                  SKILL_CONTENT=$(curl -sSL --max-time 10 \
+                    "https://raw.githubusercontent.com/${EXT_REPO}/${REF}/${path}" 2>/dev/null || true)
+                  [ -n "$SKILL_CONTENT" ] && [ "$(echo "$SKILL_CONTENT" | head -1)" != "404" ] && break
+                  SKILL_CONTENT=""
+                done
+                # If still empty, try recursive tree search
+                if [ -z "$SKILL_CONTENT" ]; then
+                  SKILL_PATH=$(curl -sSL --max-time 10 \
+                    "https://api.github.com/repos/${EXT_REPO}/git/trees/${REF}?recursive=1" 2>/dev/null \
+                    | jq -r '.tree[]? | select(.path | test("SKILL\\.md$"; "i")) | .path' | head -1)
+                  [ -n "$SKILL_PATH" ] && SKILL_CONTENT=$(curl -sSL --max-time 10 \
+                    "https://raw.githubusercontent.com/${EXT_REPO}/${REF}/${SKILL_PATH}" 2>/dev/null || true)
+                fi
+              fi
+            fi
+
+            if [ -z "$SKILL_CONTENT" ]; then
+              echo "  No SKILL.md found for $NAME, skipping summary"
+              continue
+            fi
+
+            SKILL_LEN=$(echo "$SKILL_CONTENT" | wc -c | tr -d ' ')
+            echo "  SKILL.md: ${SKILL_LEN} bytes"
+
+            # ── Call Claude to extract structured summary ──
+            jq -n \
+              --arg skill "$SKILL_CONTENT" \
+              --arg name "$NAME" \
+              '{
+                model: "claude-sonnet-4-20250514",
+                max_tokens: 1024,
+                messages: [{
+                  role: "user",
+                  content: ("Extract a structured summary from this SKILL.md for plugin \"" + $name + "\". Return ONLY valid JSON, no markdown fences:\n{\"overview\": \"one paragraph functional overview\", \"usage\": \"how to use/start this plugin (1-2 sentences)\", \"commands\": [\"command1: description\", \"command2: description\"], \"triggers\": \"when should an AI agent activate this skill (1 sentence)\"}\n\nIf there are no CLI commands, set commands to an empty array. If the SKILL.md is a stub/redirect, extract what you can from the available text.\n\nSKILL.md content:\n" + $skill)
+                }]
+              }' > /tmp/summary_request.json
+
+            HTTP_CODE=$(curl -s -o /tmp/summary_response.json -w "%{http_code}" \
+              https://api.anthropic.com/v1/messages \
+              -H "Content-Type: application/json" \
+              -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+              -H "anthropic-version: 2023-06-01" \
+              -d @/tmp/summary_request.json)
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              SUMMARY=$(jq -r '.content[0].text // ""' /tmp/summary_response.json)
+              # Validate it's valid JSON
+              if echo "$SUMMARY" | jq . >/dev/null 2>&1; then
+                # Write to a per-plugin summary file
+                echo "$SUMMARY" > "/tmp/summary-${NAME}.json"
+                echo "  Summary generated"
+              else
+                echo "  Invalid JSON from Claude, skipping"
+              fi
+            else
+              echo "  API error (HTTP $HTTP_CODE), skipping summary"
+            fi
+
+            # Rate limit protection
+            sleep 2
+          done
+
+          # Inject summaries into community_entries.json
+          if [ -f /tmp/community_entries.json ]; then
+            python3 << 'PYEOF'
+          import json, os, glob
+          with open("/tmp/community_entries.json") as f:
+              entries = json.load(f)
+          for entry in entries:
+              sf = f"/tmp/summary-{entry['name']}.json"
+              if os.path.exists(sf):
+                  with open(sf) as f:
+                      entry["skill_summary"] = json.load(f)
+                  print(f"  Injected summary: {entry['name']}")
+          with open("/tmp/community_entries.json", "w") as f:
+              json.dump(entries, f, indent=2, ensure_ascii=False)
+          PYEOF
+          fi
+
       - name: Update registry in plugin-store repo
         env:
           PLUGIN_STORE_TOKEN: ${{ secrets.PLUGIN_STORE_TOKEN }}
@@ -578,6 +694,7 @@ jobs:
                 $entry
                 + (if $existing.link then {link: $existing.link} else {} end)
                 + (if $existing.extra then {extra: $existing.extra} else {} end)
+                + (if $existing.skill_summary then {skill_summary: $existing.skill_summary} else {} end)
               else $entry end
             ]')
 
