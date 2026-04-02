@@ -443,6 +443,21 @@ jobs:
           name = os.environ["NAME"]
           skill_dir = os.environ["SKILL_DIR"]
 
+          # Dynamically find SKILL.md path
+          import glob
+          skill_md_path = ""
+          # Search in skills/<name>/ first (post-copy canonical location)
+          candidates = glob.glob(f"skills/{name}/**/SKILL.md", recursive=True)
+          if not candidates:
+              # Fallback: search in submissions/<name>/
+              candidates = glob.glob(f"submissions/{name}/**/SKILL.md", recursive=True)
+          if candidates:
+              skill_md_path = candidates[0]
+
+          REPO = "okx/plugin-store-community"
+          BASE = f"https://raw.githubusercontent.com/{REPO}/main"
+          GUI  = f"https://github.com/{REPO}/tree/main"
+
           entry = {
               "name": name,
               "version": os.environ["VERSION"],
@@ -453,12 +468,15 @@ jobs:
               "type": yq('.type // "community-developer"'),
               "components": {
                   "skill": {
-                      "repo": "okx/plugin-store-community",
+                      "repo": REPO,
                       "dir": skill_dir,
                       "commit": os.environ["COMMIT_SHA"]
                   }
               },
-              "link": yq('.link // "https://github.com/okx/plugin-store-community"')
+              "link": yq(f'.link // "{GUI}/submissions/{name}"'),
+              "homepage": f"{GUI}/submissions/{name}",
+              "readme_url": f"{BASE}/submissions/{name}/README.md",
+              "skill_url": f"{BASE}/{skill_md_path}" if skill_md_path else "",
           }
 
 
