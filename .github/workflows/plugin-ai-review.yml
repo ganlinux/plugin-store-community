@@ -423,7 +423,7 @@ jobs:
           SIZE=$(wc -c < /tmp/api_request.json)
           echo "Total API request: ${SIZE} bytes"
 
-      # ── Step 5: Call Claude API ─────────────────────────────────
+      # ── Step 5: Call Claude API (with jitter + retry) ─────────────
       - name: Call Claude API
         id: ai_review
         if: steps.build.outputs.skip != 'true'
@@ -433,22 +433,55 @@ jobs:
         run: |
           PROVIDER="${{ steps.provider.outputs.provider }}"
 
-          if [ "$PROVIDER" = "openrouter" ]; then
-            HTTP_CODE=$(curl -s -o /tmp/api_response.json -w "%{http_code}" \
-              https://openrouter.ai/api/v1/chat/completions \
-              -H "Content-Type: application/json" \
-              -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
-              -d @/tmp/api_request.json)
-          else
-            HTTP_CODE=$(curl -s -o /tmp/api_response.json -w "%{http_code}" \
-              https://api.anthropic.com/v1/messages \
-              -H "Content-Type: application/json" \
-              -H "x-api-key: ${ANTHROPIC_API_KEY}" \
-              -H "anthropic-version: 2023-06-01" \
-              -d @/tmp/api_request.json)
-          fi
+          # ── Random jitter (0-90s) to stagger concurrent PR reviews ──
+          JITTER=$(( RANDOM % 90 ))
+          echo "Waiting ${JITTER}s jitter to avoid rate limits..."
+          sleep "$JITTER"
 
-          echo "HTTP status: ${HTTP_CODE} (provider: ${PROVIDER})"
+          # ── API call with exponential backoff retry on rate limit ──
+          MAX_RETRIES=3
+          RETRY_DELAY=60
+          HTTP_CODE=""
+
+          for attempt in $(seq 1 $MAX_RETRIES); do
+            echo "API call attempt ${attempt}/${MAX_RETRIES}..."
+
+            if [ "$PROVIDER" = "openrouter" ]; then
+              HTTP_CODE=$(curl -s -o /tmp/api_response.json -w "%{http_code}" \
+                https://openrouter.ai/api/v1/chat/completions \
+                -H "Content-Type: application/json" \
+                -H "Authorization: Bearer ${OPENROUTER_API_KEY}" \
+                -d @/tmp/api_request.json)
+            else
+              HTTP_CODE=$(curl -s -o /tmp/api_response.json -w "%{http_code}" \
+                https://api.anthropic.com/v1/messages \
+                -H "Content-Type: application/json" \
+                -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+                -H "anthropic-version: 2023-06-01" \
+                -d @/tmp/api_request.json)
+            fi
+
+            echo "HTTP status: ${HTTP_CODE} (provider: ${PROVIDER}, attempt: ${attempt})"
+
+            # Success — break out of retry loop
+            if [ "$HTTP_CODE" = "200" ]; then
+              break
+            fi
+
+            # Check if retryable (rate limit / 529 overloaded)
+            ERROR_MSG=$(jq -r '.error.message // .error // "Unknown error"' /tmp/api_response.json 2>/dev/null || echo "HTTP ${HTTP_CODE}")
+            if echo "$ERROR_MSG" | grep -qiE "rate.limit|too many requests|429|overloaded|529|quota"; then
+              if [ "$attempt" -lt "$MAX_RETRIES" ]; then
+                WAIT=$((RETRY_DELAY * attempt + RANDOM % 30))
+                echo "Rate limited. Retrying in ${WAIT}s..."
+                sleep "$WAIT"
+                continue
+              fi
+            fi
+
+            # Non-retryable error or last attempt — break
+            break
+          done
 
           if [ "$HTTP_CODE" != "200" ]; then
             ERROR_MSG=$(jq -r '.error.message // .error // "Unknown error"' /tmp/api_response.json 2>/dev/null || echo "HTTP ${HTTP_CODE}")
@@ -457,13 +490,13 @@ jobs:
 
             # Classify error type
             if echo "$ERROR_MSG" | grep -qiE "rate.limit|too many requests|429|quota"; then
-              echo "⏳ **AI review FAILED: rate limit exceeded** — too many concurrent reviews. Error: ${ERROR_MSG}. Please re-run this workflow or wait and push again." > /tmp/ai_review.md
+              echo "⏳ **AI review FAILED: rate limit exceeded after ${MAX_RETRIES} retries** — Error: ${ERROR_MSG}." > /tmp/ai_review.md
               echo "merge_rec=manual" >> "$GITHUB_OUTPUT"
             elif echo "$ERROR_MSG" | grep -qiE "too many tokens|context length|token limit|content.*large|request.*large"; then
-              echo "❌ **AI review FAILED: source code too large for full review** (request: ${REQUEST_SIZE} bytes, plugin content: ${CONTENT_SIZE} bytes). Error: ${ERROR_MSG}" > /tmp/ai_review.md
+              echo "❌ **AI review FAILED: source code exceeds context limit** (request: ${REQUEST_SIZE} bytes, plugin content: ${CONTENT_SIZE} bytes). Error: ${ERROR_MSG}" > /tmp/ai_review.md
               echo "merge_rec=blocked" >> "$GITHUB_OUTPUT"
             else
-              echo "❌ **AI review FAILED** (HTTP ${HTTP_CODE}): ${ERROR_MSG}. Request size: ${REQUEST_SIZE} bytes, plugin content: ${CONTENT_SIZE} bytes. Full source code review could not be completed." > /tmp/ai_review.md
+              echo "❌ **AI review FAILED** (HTTP ${HTTP_CODE}): ${ERROR_MSG}. Request size: ${REQUEST_SIZE} bytes, plugin content: ${CONTENT_SIZE} bytes." > /tmp/ai_review.md
               echo "merge_rec=manual" >> "$GITHUB_OUTPUT"
             fi
 
