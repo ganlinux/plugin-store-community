@@ -281,6 +281,8 @@ jobs:
           go-version: 'stable'
           check-latest: true
 
+      - uses: actions/checkout@v4
+
       - name: Build plugins
         env:
           BUILD_PLUGINS: ${{ needs.detect.outputs.build_plugins_json }}
@@ -296,8 +298,15 @@ jobs:
             [ "$DIR" = "." ] && DIR=""
 
             echo "Building $NAME ($LANG) for ${{ matrix.target }}"
-            git clone --depth=100 "https://github.com/${REPO}.git" "/tmp/build-${NAME}"
-            cd "/tmp/build-${NAME}" && git checkout "$COMMIT"
+            if [ -n "$REPO" ] && [ "$REPO" != "null" ]; then
+              # External repo: clone at pinned commit
+              git clone --depth=100 "https://github.com/${REPO}.git" "/tmp/build-${NAME}"
+              cd "/tmp/build-${NAME}" && git checkout "$COMMIT"
+            else
+              # Local source: copy from submissions directory
+              cp -r "submissions/${NAME}" "/tmp/build-${NAME}"
+              cd "/tmp/build-${NAME}"
+            fi
             [ -n "$DIR" ] && cd "$DIR"
 
             case "$LANG" in

@@ -61,9 +61,10 @@ jobs:
           fi
 
           # Parse all build fields at once
-          YAML_FILE="$YAML_FILE" python3 << 'PYEOF'
+          YAML_FILE="$YAML_FILE" PLUGIN_DIR="$PLUGIN_DIR" python3 << 'PYEOF'
           import yaml, os
           yaml_file = os.environ["YAML_FILE"]
+          plugin_dir = os.environ["PLUGIN_DIR"]
           with open(yaml_file) as f:
               data = yaml.safe_load(f)
           build = data.get("build")
@@ -74,12 +75,20 @@ jobs:
               else:
                   gh.write("has_build=true\n")
                   gh.write(f"build_lang={build.get('lang', '')}\n")
-                  gh.write(f"source_repo={build.get('source_repo', '')}\n")
-                  gh.write(f"source_commit={build.get('source_commit', '')}\n")
+                  repo = build.get('source_repo', '')
+                  commit = build.get('source_commit', '')
+                  gh.write(f"source_repo={repo}\n")
+                  gh.write(f"source_commit={commit}\n")
                   sd = build.get('source_dir', '.')
                   gh.write(f"source_dir={'' if sd == '.' else sd}\n")
                   gh.write(f"binary_name={build.get('binary_name', '')}\n")
                   gh.write(f"build_main={build.get('main', '')}\n")
+                  # source_mode: "local" if no external repo, "external" if repo specified
+                  if repo:
+                      gh.write("source_mode=external\n")
+                  else:
+                      gh.write("source_mode=local\n")
+                      gh.write(f"local_source_dir={plugin_dir}\n")
           PYEOF
 
   # ═══ Clone source repo (shared step) ════════════════════════
@@ -95,12 +104,22 @@ jobs:
     if: needs.detect.outputs.has_build == 'true' && needs.detect.outputs.build_lang == 'rust'
     runs-on: ubuntu-latest
     steps:
-      - name: Clone source at pinned commit
+      - uses: actions/checkout@v4
+        if: needs.detect.outputs.source_mode == 'local'
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Prepare source
         run: |
-          git clone "https://github.com/${{ needs.detect.outputs.source_repo }}.git" /tmp/source
-          cd /tmp/source
-          git checkout "${{ needs.detect.outputs.source_commit }}"
-          echo "Checked out $(git rev-parse HEAD)"
+          if [ "${{ needs.detect.outputs.source_mode }}" = "local" ]; then
+            cp -r "${{ needs.detect.outputs.local_source_dir }}" /tmp/source
+            echo "Using local source from ${{ needs.detect.outputs.local_source_dir }}"
+          else
+            git clone "https://github.com/${{ needs.detect.outputs.source_repo }}.git" /tmp/source
+            cd /tmp/source && git checkout "${{ needs.detect.outputs.source_commit }}"
+            echo "Checked out $(git rev-parse HEAD)"
+          fi
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -150,10 +169,20 @@ jobs:
     if: needs.detect.outputs.has_build == 'true' && needs.detect.outputs.build_lang == 'go'
     runs-on: ubuntu-latest
     steps:
-      - name: Clone source at pinned commit
+      - uses: actions/checkout@v4
+        if: needs.detect.outputs.source_mode == 'local'
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Prepare source
         run: |
-          git clone "https://github.com/${{ needs.detect.outputs.source_repo }}.git" /tmp/source
-          cd /tmp/source && git checkout "${{ needs.detect.outputs.source_commit }}"
+          if [ "${{ needs.detect.outputs.source_mode }}" = "local" ]; then
+            cp -r "${{ needs.detect.outputs.local_source_dir }}" /tmp/source
+          else
+            git clone "https://github.com/${{ needs.detect.outputs.source_repo }}.git" /tmp/source
+            cd /tmp/source && git checkout "${{ needs.detect.outputs.source_commit }}"
+          fi
 
       - uses: actions/setup-go@v5
         with:
@@ -204,10 +233,20 @@ jobs:
     if: needs.detect.outputs.has_build == 'true' && needs.detect.outputs.build_lang == 'typescript'
     runs-on: ubuntu-latest
     steps:
-      - name: Clone source at pinned commit
+      - uses: actions/checkout@v4
+        if: needs.detect.outputs.source_mode == 'local'
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Prepare source
         run: |
-          git clone "https://github.com/${{ needs.detect.outputs.source_repo }}.git" /tmp/source
-          cd /tmp/source && git checkout "${{ needs.detect.outputs.source_commit }}"
+          if [ "${{ needs.detect.outputs.source_mode }}" = "local" ]; then
+            cp -r "${{ needs.detect.outputs.local_source_dir }}" /tmp/source
+          else
+            git clone "https://github.com/${{ needs.detect.outputs.source_repo }}.git" /tmp/source
+            cd /tmp/source && git checkout "${{ needs.detect.outputs.source_commit }}"
+          fi
 
       - uses: oven-sh/setup-bun@v2
 
@@ -248,10 +287,20 @@ jobs:
     if: needs.detect.outputs.has_build == 'true' && needs.detect.outputs.build_lang == 'node'
     runs-on: ubuntu-latest
     steps:
-      - name: Clone source at pinned commit
+      - uses: actions/checkout@v4
+        if: needs.detect.outputs.source_mode == 'local'
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Prepare source
         run: |
-          git clone "https://github.com/${{ needs.detect.outputs.source_repo }}.git" /tmp/source
-          cd /tmp/source && git checkout "${{ needs.detect.outputs.source_commit }}"
+          if [ "${{ needs.detect.outputs.source_mode }}" = "local" ]; then
+            cp -r "${{ needs.detect.outputs.local_source_dir }}" /tmp/source
+          else
+            git clone "https://github.com/${{ needs.detect.outputs.source_repo }}.git" /tmp/source
+            cd /tmp/source && git checkout "${{ needs.detect.outputs.source_commit }}"
+          fi
 
       - uses: oven-sh/setup-bun@v2
 
@@ -294,10 +343,20 @@ jobs:
     if: needs.detect.outputs.has_build == 'true' && needs.detect.outputs.build_lang == 'python'
     runs-on: ubuntu-latest
     steps:
-      - name: Clone source at pinned commit
+      - uses: actions/checkout@v4
+        if: needs.detect.outputs.source_mode == 'local'
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Prepare source
         run: |
-          git clone "https://github.com/${{ needs.detect.outputs.source_repo }}.git" /tmp/source
-          cd /tmp/source && git checkout "${{ needs.detect.outputs.source_commit }}"
+          if [ "${{ needs.detect.outputs.source_mode }}" = "local" ]; then
+            cp -r "${{ needs.detect.outputs.local_source_dir }}" /tmp/source
+          else
+            git clone "https://github.com/${{ needs.detect.outputs.source_repo }}.git" /tmp/source
+            cd /tmp/source && git checkout "${{ needs.detect.outputs.source_commit }}"
+          fi
 
       - uses: actions/setup-python@v5
         with:
