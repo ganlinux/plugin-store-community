@@ -128,6 +128,32 @@ jobs:
             echo "${AUTHOR} is not an OKX org member (HTTP ${HTTP_CODE})"
           fi
 
+      - name: Check name uniqueness
+        id: name_check
+        run: |
+          PLUGIN_NAME="${{ needs.detect-plugin.outputs.plugin_name }}"
+          IS_NEW="${{ needs.detect-plugin.outputs.is_new }}"
+
+          if [ "$IS_NEW" != "true" ]; then
+            echo "Plugin update (not new) — skip uniqueness check"
+            echo "duplicate=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Fetch current registry and check for duplicate name
+          REGISTRY=$(curl -sSL --max-time 10 \
+            "https://raw.githubusercontent.com/okx/plugin-store/main/registry.json" 2>/dev/null || echo '{"plugins":[]}')
+
+          EXISTING=$(echo "$REGISTRY" | jq -r '.plugins[].name' 2>/dev/null)
+
+          if echo "$EXISTING" | grep -qx "$PLUGIN_NAME"; then
+            echo "::error::Plugin name '${PLUGIN_NAME}' already exists in registry. Choose a different name."
+            echo "duplicate=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Name '${PLUGIN_NAME}' is unique — OK"
+            echo "duplicate=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run lint
         id: lint
         env:
@@ -137,6 +163,13 @@ jobs:
           OUTPUT=$(plugin-store lint "${{ needs.detect-plugin.outputs.plugin_dir }}" 2>&1)
           EXIT_CODE=$?
           set -e
+
+          # Append name uniqueness result
+          if [ "${{ steps.name_check.outputs.duplicate }}" = "true" ]; then
+            OUTPUT="${OUTPUT}
+  ❌ [E034] name '${{ needs.detect-plugin.outputs.plugin_name }}' already exists in registry"
+            EXIT_CODE=1
+          fi
 
           echo "$OUTPUT"
 
