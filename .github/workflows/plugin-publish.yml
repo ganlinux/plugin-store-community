@@ -498,8 +498,10 @@ jobs:
           echo "$ENTRIES" > /tmp/community_entries.json
           echo "Generated $(echo "$ENTRIES" | jq length) community plugin entries"
 
-      - name: Create git tags
+      - name: Create git tags (max 20, prune oldest)
         run: |
+          MAX_TAGS=20
+
           for PLUGIN_NAME in ${{ needs.detect.outputs.changed_plugins }}; do
             YAML="submissions/${PLUGIN_NAME}/plugin.yaml"
             [ -f "$YAML" ] || continue
@@ -514,6 +516,21 @@ jobs:
             fi
           done
           git push --tags || true
+
+          # Prune oldest plugin tags if total exceeds MAX_TAGS
+          ALL_TAGS=$(git tag -l 'plugins/*' --sort=creatordate)
+          COUNT=$(echo "$ALL_TAGS" | grep -c . || true)
+          if [ "$COUNT" -gt "$MAX_TAGS" ]; then
+            EXCESS=$((COUNT - MAX_TAGS))
+            echo "Tag count ${COUNT} exceeds limit ${MAX_TAGS}, pruning ${EXCESS} oldest tags..."
+            echo "$ALL_TAGS" | head -n "$EXCESS" | while read OLD_TAG; do
+              echo "  Deleting: $OLD_TAG"
+              git tag -d "$OLD_TAG" 2>/dev/null || true
+              git push origin ":refs/tags/$OLD_TAG" 2>/dev/null || true
+            done
+          else
+            echo "Tag count ${COUNT}/${MAX_TAGS} — within limit"
+          fi
 
       - name: Update registry in plugin-store repo
         env:
