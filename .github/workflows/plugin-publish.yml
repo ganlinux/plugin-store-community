@@ -646,11 +646,12 @@ jobs:
               else $entry end
             ]')
 
+          # Merge and deduplicate by name (last wins)
           MERGED=$(jq -n \
             --argjson official "$OFFICIAL" \
             --argjson community "$COMMUNITY" \
             --arg stats_url "$(echo "$CURRENT" | jq -r '.stats_url // ""')" \
-            '{schema_version: 1, stats_url: $stats_url, plugins: ($official + $community)}')
+            '{schema_version: 1, stats_url: $stats_url, plugins: [($official + $community) | group_by(.name)[] | last]}')
 
           echo "$MERGED" | jq '.' > registry.json
 
