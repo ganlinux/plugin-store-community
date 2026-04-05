@@ -21,7 +21,7 @@ components:
 build:
   lang: rust
   binary_name: gravita-protocol
-  source_repo: skylavis-sky/onchainos-plugins
+  source_repo: ganlinux/onchainos-plugins
   source_commit: "0b0792833699f4bad8424ff55ba6191eb3dda1dd"
   source_dir: gravita-protocol
 
