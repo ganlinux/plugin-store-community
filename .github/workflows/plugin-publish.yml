@@ -116,6 +116,9 @@ jobs:
 
             BUILD_LANG=$(yq '.build.lang // ""' "$YAML")
             [ -z "$BUILD_LANG" ] && continue
+            # Only Rust/Go compile to binary releases
+            # TypeScript/Node → npm install -g (injected into pre-flight by Phase 4)
+            # Python → pip install (injected into pre-flight by Phase 4)
             case "$BUILD_LANG" in typescript|node|python) continue ;; esac
 
             VERSION=$(yq '.version' "$YAML")
