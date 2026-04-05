@@ -1,6 +1,6 @@
 schema_version: 1
 name: e2e-ts-cli
-version: "1.0.0"
+version: "1.0.1"
 description: "E2E test plugin: TypeScript echo CLI"
 author: {name: "yz06276", github: "yz06276"}
 license: MIT
