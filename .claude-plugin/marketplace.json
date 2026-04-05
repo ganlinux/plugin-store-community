@@ -7,6 +7,11 @@
   },
   "plugins": [
     {
+      "name": "e2e-go-cli",
+      "description": "E2E test plugin: Go echo CLI",
+      "source": "./skills/e2e-go-cli"
+    },
+    {
       "name": "e2e-rust-cli",
       "description": "E2E test plugin: Rust CLI with onchainos price query",
       "source": "./skills/e2e-rust-cli"
