@@ -421,20 +421,15 @@ jobs:
               NOTES="Source: $(echo "$PLUGIN" | jq -r '.source_repo')@$(echo "$PLUGIN" | jq -r '.source_commit')"
 
               # Release on THIS repo (community), not plugin-store
+              # If release exists, delete it first then recreate (ensures clean assets)
               echo "Creating release: $TAG with $(ls ${BIN}-* | wc -l) binaries"
-              if gh release create "$TAG" \
+              gh release delete "$TAG" --repo "${{ github.repository }}" --yes 2>/dev/null || true
+              gh release create "$TAG" \
                 --repo "${{ github.repository }}" \
                 --title "$TITLE" \
                 --notes "$NOTES" \
-                ${BIN}-* checksums.txt 2>&1; then
-                echo "Release created: $TAG"
-              elif gh release upload "$TAG" \
-                --repo "${{ github.repository }}" \
-                --clobber ${BIN}-* checksums.txt 2>&1; then
-                echo "Release updated: $TAG"
-              else
-                echo "::warning::Release create/upload failed for $TAG"
-              fi
+                ${BIN}-* checksums.txt 2>&1 && echo "Release created: $TAG" \
+                || echo "::warning::Release create failed for $TAG"
             fi
             cd /tmp
           done
