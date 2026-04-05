@@ -292,7 +292,11 @@ jobs:
           git add skills/ .claude-plugin/marketplace.json
           git diff --staged --quiet && echo "No changes" && exit 0
           git commit -m "auto: copy plugin skills + update marketplace.json"
-          git push
+          for attempt in 1 2 3; do
+            if git push; then echo "Push succeeded"; break; fi
+            echo "Push failed (attempt $attempt/3), rebasing..."
+            git pull --rebase origin main
+          done
 
   # ═══════════════════════════════════════════════════════════════
   #  Step 3: Multi-platform build (Rust/Go only)
@@ -418,16 +422,19 @@ jobs:
 
               # Release on THIS repo (community), not plugin-store
               echo "Creating release: $TAG with $(ls ${BIN}-* | wc -l) binaries"
-              gh release create "$TAG" \
+              if gh release create "$TAG" \
                 --repo "${{ github.repository }}" \
                 --title "$TITLE" \
                 --notes "$NOTES" \
-                ${BIN}-* checksums.txt 2>&1 || \
-              gh release upload "$TAG" \
+                ${BIN}-* checksums.txt 2>&1; then
+                echo "Release created: $TAG"
+              elif gh release upload "$TAG" \
                 --repo "${{ github.repository }}" \
-                --clobber ${BIN}-* checksums.txt 2>&1 || \
-              echo "::warning::Release create/upload failed for $TAG"
-              echo "Release done: $TAG"
+                --clobber ${BIN}-* checksums.txt 2>&1; then
+                echo "Release updated: $TAG"
+              else
+                echo "::warning::Release create/upload failed for $TAG"
+              fi
             fi
             cd /tmp
           done
