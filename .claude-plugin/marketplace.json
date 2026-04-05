@@ -38,7 +38,7 @@
     },
     {
       "name": "e2e-ts-cli",
-      "description": "E2E test plugin: TypeScript echo CLI",
+      "description": "E2E test: TypeScript CLI with onchainos price query",
       "source": "./skills/e2e-ts-cli"
     },
     {
