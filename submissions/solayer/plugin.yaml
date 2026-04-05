@@ -22,7 +22,7 @@ components:
 build:
   lang: rust
   binary_name: solayer
-  source_repo: skylavis-sky/onchainos-plugins
+  source_repo: ganlinux/onchainos-plugins
   source_commit: "369d0bfa2525802bc11a2d14036c1bc2cce30867"
   source_dir: solayer
 
