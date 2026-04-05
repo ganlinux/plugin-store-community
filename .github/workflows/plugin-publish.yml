@@ -406,7 +406,13 @@ jobs:
             PLUGIN=$(echo "$ENCODED" | base64 -d)
             NAME=$(echo "$PLUGIN" | jq -r '.name')
             BIN=$(echo "$PLUGIN" | jq -r '.binary_name')
-            VERSION=$(yq '.version' "submissions/${NAME}/plugin.yaml")
+
+            YAML_FILE="submissions/${NAME}/plugin.yaml"
+            if [ ! -f "$YAML_FILE" ]; then
+              echo "::warning::$YAML_FILE not found, skipping release for $NAME"
+              continue
+            fi
+            VERSION=$(yq '.version' "$YAML_FILE")
 
             mkdir -p "/tmp/release-${NAME}"
             cp /tmp/all-artifacts/${BIN}-* "/tmp/release-${NAME}/" 2>/dev/null || true
